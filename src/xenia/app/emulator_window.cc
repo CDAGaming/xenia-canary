@@ -41,7 +41,7 @@ using xe::ui::MenuItem;
 using xe::ui::MouseEvent;
 using xe::ui::UIEvent;
 
-const std::wstring kBaseTitle = L"xenia";
+const std::wstring kBaseTitle = L"xenia-canary";
 
 ui::NativeWindowHandle window_handle;
 
