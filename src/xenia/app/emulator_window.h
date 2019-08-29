@@ -38,6 +38,7 @@ class EmulatorWindow {
   void UpdateTitle();
   void ToggleFullscreen();
   void SetInitializingShaderStorage(bool initializing);
+  static std::wstring SwapNext();
 
  private:
   explicit EmulatorWindow(Emulator* emulator);
