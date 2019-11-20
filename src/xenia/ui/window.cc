@@ -246,7 +246,7 @@ void Window::OnPaint(UIEvent* e) {
   on_paint(e);
 
   if (display_fps_) {
-    ImGui::Begin("FPS", (bool*)0, {0.0f, 0.0f}, 0.0f,
+    ImGui::Begin("FPS", (bool*)0,
                  ImGuiWindowFlags_::ImGuiWindowFlags_NoTitleBar |
                      ImGuiWindowFlags_::ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_::ImGuiWindowFlags_NoMove |
