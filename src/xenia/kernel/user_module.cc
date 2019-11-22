@@ -272,7 +272,7 @@ X_STATUS UserModule::LoadXexContinue() {
 
   ldr_data->dll_base = 0;  // GetProcAddress will read this.
   ldr_data->xex_header_base = guest_xex_header_;
-  ldr_data->full_image_size = security_header->image_size;
+  ldr_data->full_image_size = *security_header->image_size;
   ldr_data->image_base = this->xex_module()->base_address();
   ldr_data->entry_point = entry_point_;
 
@@ -453,13 +453,13 @@ void UserModule::Dump() {
   auto security_info = xex_module()->xex_security_info();
   sb.AppendFormat("Security Header:\n");
   sb.AppendFormat("     Image Flags: %.8X\n",
-                  (uint32_t)security_info->image_flags);
+                  (uint32_t)*security_info->image_flags);
   sb.AppendFormat("    Load Address: %.8X\n",
-                  (uint32_t)security_info->load_address);
+                  (uint32_t)*security_info->load_address);
   sb.AppendFormat("      Image Size: %.8X\n",
-                  (uint32_t)security_info->image_size);
+                  (uint32_t)*security_info->image_size);
   sb.AppendFormat("    Export Table: %.8X\n",
-                  (uint32_t)security_info->export_table);
+                  (uint32_t)*security_info->export_table);
 
   // Optional headers
   sb.AppendFormat("Optional Header Count: %d\n",
@@ -703,7 +703,7 @@ void UserModule::Dump() {
   }
 
   sb.AppendFormat("Sections:\n");
-  for (uint32_t i = 0, page = 0; i < security_info->page_descriptor_count;
+  for (uint32_t i = 0, page = 0; i < *security_info->page_descriptor_count;
        i++) {
     // Manually byteswap the bitfield data.
     xex2_page_descriptor page_descriptor;
