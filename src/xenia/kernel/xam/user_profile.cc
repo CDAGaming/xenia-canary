@@ -9,14 +9,14 @@
 
 #include <sstream>
 
-#include "xenia/kernel/kernel_state.h"
-#include "xenia/kernel/util/shim_utils.h"
-#include "xenia/base/cvar.h"
 #include "xenia/base/clock.h"
+#include "xenia/base/cvar.h"
 #include "xenia/base/filesystem.h"
 #include "xenia/base/logging.h"
 #include "xenia/base/mapped_memory.h"
+#include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/util/crypto_utils.h"
+#include "xenia/kernel/util/shim_utils.h"
 #include "xenia/kernel/xam/user_profile.h"
 
 namespace xe {
@@ -25,8 +25,6 @@ namespace xam {
 
 DEFINE_string(profile_directory, "Content\\Profile\\",
               "The directory to store profile data inside", "Kernel");
-
-constexpr uint32_t kDashboardID = 0xFFFE07D1;
 
 std::string X_XAMACCOUNTINFO::GetGamertagString() const {
   return xe::to_string(std::wstring(gamertag));
@@ -240,7 +238,7 @@ void UserProfile::LoadProfile() {
     title_gpds_[title.title_id] = title_gpd;
   }
 
-  XELOGI("Loaded %d profile GPDs", title_gpds_.size() + 1);
+  XELOGI("Loaded %d profile GPDs", title_gpds_.size());
 }
 
 xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
@@ -593,6 +591,10 @@ void UserProfile::SaveSetting(UserProfile::Setting* setting) {
     // stored some other way.
     XELOGW("Attempting to save unsupported profile setting to disk");
   }
+}
+
+xdbf::GpdFile* UserProfile::GetDashboardGpd() {
+    return &dash_gpd_;
 }
 
 }  // namespace xam
