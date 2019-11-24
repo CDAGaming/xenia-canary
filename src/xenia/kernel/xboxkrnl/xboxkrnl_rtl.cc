@@ -512,14 +512,10 @@ static_assert(sizeof(X_TIME_FIELDS) == 16, "Must be LARGEINTEGER");
 // https://support.microsoft.com/en-us/kb/167296
 void RtlTimeToTimeFields(lpqword_t time_ptr,
                          pointer_t<X_TIME_FIELDS> time_fields_ptr) {
-  // int64_t time_ms = time_ptr.value() / 10000 - 11644473600000LL;
-  // TEST
-  long long inttime = 11644473600000;
-  long long timeptrval = time_ptr.value();
-  if (timeptrval) {
-    inttime = timeptrval;
-  }
-  int64_t time_ms = (short)((inttime % 10000000) / 10000);
+  if (!time_ptr.value())
+    return;
+
+  int64_t time_ms = time_ptr.value() / 10000 - 11644473600000LL;
   time_t timet = time_ms / 1000;
   struct tm* tm = gmtime(&timet);
 
