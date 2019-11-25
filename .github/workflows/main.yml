@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - 'gh-pages'
+      - 'master'
     paths-ignore:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
@@ -16,6 +17,7 @@ on:
   pull_request:
     branches-ignore:
       - 'gh-pages'
+      - 'master'
     paths-ignore:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
@@ -31,7 +33,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        cpu_arch: [SSE2, AVX, AVX2, AVX512] # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
+        cpu_arch: [SSE2, AVX, AVX2, AVX512]  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
     steps:
     - uses: actions/checkout@master
 

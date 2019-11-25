@@ -4,6 +4,7 @@ trigger:
     - '*'
     exclude:
     - gh-pages
+    - master
   paths:
     exclude:
     - docs/*
@@ -18,6 +19,7 @@ pr:
     - '*'
     exclude:
     - gh-pages
+    - master
   paths:
     exclude:
     - docs/*
@@ -33,8 +35,8 @@ jobs:
     vmImage: windows-latest
   strategy:
     matrix:
-      SSE2:
-        cpu_arch: SSE2
+      SSE2:  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
+        cpu_arch: SSE2  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
       AVX:
         cpu_arch: AVX
       AVX2:
@@ -50,7 +52,8 @@ jobs:
 
   - script: |
       cd build\bin\Windows\Release
-      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia.exe 
+      ren xenia.exe xenia-canary.exe
+      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-canary.exe 
       7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-vfs-dump.exe 
     displayName: 'Create archives'
 

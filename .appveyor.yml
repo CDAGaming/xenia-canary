@@ -1,21 +1,18 @@
 version: 1.0.{build}-{branch}
 
-clone_depth: 1
-
-matrix:
-  fast_finish: true
-
 branches:
   except:
     - gh-pages
+    - master
 
 skip_tags: true
 
 skip_commits:
   files:
+    - docs/*/*
     - .github/*
+    - .github/*/*
     - .travis.yml
-    - docs/*
     - src/**/*_posix.*
     - src/**/*_linux.*
     - src/**/*_x11.*
@@ -44,7 +41,8 @@ build_script:
 after_build:
   - |-
       cd build\bin\Windows\Release
-      7z a ..\..\..\..\xenia-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia.exe
+      ren xenia.exe xenia-canary.exe
+      7z a ..\..\..\..\xenia-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-canary.exe
       7z a ..\..\..\..\xenia-vfs-dump-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-vfs-dump.exe
       cd ..\..\..\..
 
