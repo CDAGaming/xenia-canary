@@ -104,6 +104,9 @@ UserProfile::UserProfile() : dash_gpd_(kDashboardID) {
   account_.xuid_online = 0xE000BABEBABEBABE;
   wcscpy(account_.gamertag, L"XeniaUser");
 
+  // Try loading profile GPD files...
+  LoadProfile();
+
   // https://cs.rin.ru/forum/viewtopic.php?f=38&t=60668&hilit=gfwl+live&start=195
   // https://github.com/arkem/py360/blob/master/py360/constants.py
   // XPROFILE_GAMER_YAXIS_INVERSION
@@ -168,9 +171,6 @@ UserProfile::UserProfile() : dash_gpd_(kDashboardID) {
   AddSetting(std::make_unique<BinarySetting>(0x63E83FFE));
   // XPROFILE_TITLE_SPECIFIC3
   AddSetting(std::make_unique<BinarySetting>(0x63E83FFD));
-
-  // Try loading profile GPD files...
-  LoadProfile();
 }
 
 void UserProfile::LoadProfile() {
@@ -595,6 +595,23 @@ void UserProfile::SaveSetting(UserProfile::Setting* setting) {
 
 xdbf::GpdFile* UserProfile::GetDashboardGpd() {
     return &dash_gpd_;
+}
+
+xdbf::SpaFile* UserProfile::GetTitleSpa(uint32_t title_id) {
+  std::wstring file_location = xe::to_wstring(cvars::profile_directory) +
+                               format_string(L"%X", title_id) + L".gpd";
+
+  auto mmap_ = MappedMemory::Open(file_location, MappedMemory::Mode::kRead);
+
+  if (!mmap_) {
+    return (nullptr);
+  }
+
+  xdbf::SpaFile* game_entry = new xdbf::SpaFile();
+  game_entry->Read(mmap_->data(), mmap_->size());
+  mmap_->Close();
+
+  return (game_entry);
 }
 
 }  // namespace xam

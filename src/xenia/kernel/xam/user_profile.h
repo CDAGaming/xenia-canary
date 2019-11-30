@@ -18,6 +18,7 @@
 #include "xenia/kernel/xam/xdbf/xdbf.h"
 #include "xenia/xbox.h"
 
+
 namespace xe {
 namespace kernel {
 namespace xam {
@@ -323,6 +324,7 @@ class UserProfile {
   xdbf::GpdFile* SetTitleSpaData(const xdbf::SpaFile& spa_data);
   xdbf::GpdFile* GetTitleGpd(uint32_t title_id = -1);
   xdbf::GpdFile* GetDashboardGpd();
+  xdbf::SpaFile* GetTitleSpa(uint32_t title_id);
 
   void GetTitles(std::vector<xdbf::GpdFile*>& titles);
 
