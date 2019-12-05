@@ -35,8 +35,8 @@ void XNotifyListener::EnqueueNotification(XNotificationID id, uint32_t data) {
   // TODO(Gliniak): (confirm) mask 0x01 means accept all
   XELOGI("XnotifyListener::EnqueueNotification( Mask: %.8X ID: %.8X Drop?:(%X) )",
 	  mask_, id,
-	  ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 5) != 0)));
-  if ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 5) != 0)) {
+	  ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 8) != 0)));
+  if ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 8) != 0)) {
     return;
   }
 
