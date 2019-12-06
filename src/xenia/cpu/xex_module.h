@@ -66,8 +66,8 @@ class XexModule : public xe::cpu::Module {
   const xex2_header* xex_header() const {
     return reinterpret_cast<const xex2_header*>(xex_header_mem_.data());
   }
-  const SecurityInfoContext* xex_security_info() const {
-    return &security_info_;
+  const xex2_security_info* xex_security_info() const {
+    return GetSecurityInfo(xex_header());
   }
 
   uint32_t image_size() const {
@@ -76,7 +76,7 @@ class XexModule : public xe::cpu::Module {
     // Calculate the new total size of the XEX image from its headers.
     auto heap = memory()->LookupHeap(base_address_);
     uint32_t total_size = 0;
-    for (uint32_t i = 0; i < *xex_security_info()->page_descriptor_count; i++) {
+    for (uint32_t i = 0; i < xex_security_info()->page_descriptor_count; i++) {
       // Byteswap the bitfield manually.
       xex2_page_descriptor desc;
       desc.value =
@@ -127,7 +127,7 @@ class XexModule : public xe::cpu::Module {
     return GetOptHeader(key, reinterpret_cast<void**>(out_ptr));
   }
 
-  static const void* GetSecurityInfo(const xex2_header* header);
+  static const xex2_security_info* GetSecurityInfo(const xex2_header* header);
 
   const PESection* GetPESection(const char* name);
 

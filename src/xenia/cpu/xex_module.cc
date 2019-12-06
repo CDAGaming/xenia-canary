@@ -103,9 +103,10 @@ bool XexModule::GetOptHeader(xex2_header_keys key, void** out_ptr) const {
   return XexModule::GetOptHeader(xex_header(), key, out_ptr);
 }
 
-const void* XexModule::GetSecurityInfo(const xex2_header* header) {
-  return reinterpret_cast<const void*>(uintptr_t(header) +
-                                       header->security_offset);
+const xex2_security_info* XexModule::GetSecurityInfo(
+    const xex2_header* header) {
+  return reinterpret_cast<const xex2_security_info*>(uintptr_t(header) +
+                                                     header->security_offset);
 }
 
 const PESection* XexModule::GetPESection(const char* name) {
@@ -120,9 +121,9 @@ const PESection* XexModule::GetPESection(const char* name) {
 
 uint32_t XexModule::GetProcAddress(uint16_t ordinal) const {
   // First: Check the xex2 export table.
-  if (*xex_security_info()->export_table) {
+  if (xex_security_info()->export_table) {
     auto export_table = memory()->TranslateVirtual<const xex2_export_table*>(
-        *xex_security_info()->export_table);
+        xex_security_info()->export_table);
 
     ordinal -= export_table->base;
     if (ordinal >= export_table->count) {
@@ -587,7 +588,7 @@ int XexModule::ReadImageBasicCompressed(const void* xex_addr,
 
   // Calculate the total size of the XEX image from its headers.
   uint32_t total_size = 0;
-  for (uint32_t i = 0; i < *xex_security_info()->page_descriptor_count; i++) {
+  for (uint32_t i = 0; i < xex_security_info()->page_descriptor_count; i++) {
     // Byteswap the bitfield manually.
     xex2_page_descriptor desc;
     desc.value = xe::byte_swap(xex_security_info()->page_descriptors[i].value);
@@ -916,7 +917,7 @@ bool XexModule::Load(const std::string& name, const std::string& path,
 
   // Try setting our base_address based on XEX_HEADER_IMAGE_BASE_ADDRESS, fall
   // back to xex_security_info otherwise
-  base_address_ = *xex_security_info()->load_address;
+  base_address_ = xex_security_info()->load_address;
   xe::be<uint32_t>* base_addr_opt = nullptr;
   if (GetOptHeader(XEX_HEADER_IMAGE_BASE_ADDRESS, &base_addr_opt))
     base_address_ = *base_addr_opt;
@@ -971,7 +972,7 @@ bool XexModule::LoadContinue() {
   high_address_ = 0;
 
   auto sec_header = xex_security_info();
-  for (uint32_t i = 0, page = 0; i < *sec_header->page_descriptor_count; i++) {
+  for (uint32_t i = 0, page = 0; i < sec_header->page_descriptor_count; i++) {
     // Byteswap the bitfield manually.
     xex2_page_descriptor desc;
     desc.value = xe::byte_swap(sec_header->page_descriptors[i].value);
@@ -1046,7 +1047,7 @@ bool XexModule::LoadContinue() {
   }
 
   // Setup memory protection.
-  for (uint32_t i = 0, page = 0; i < *sec_header->page_descriptor_count; i++) {
+  for (uint32_t i = 0, page = 0; i < sec_header->page_descriptor_count; i++) {
     // Byteswap the bitfield manually.
     xex2_page_descriptor desc;
     desc.value = xe::byte_swap(sec_header->page_descriptors[i].value);
@@ -1451,7 +1452,7 @@ bool XexModule::FindSaveRest() {
 
   auto page_size = base_address_ <= 0x90000000 ? 64 * 1024 : 4 * 1024;
   auto sec_header = xex_security_info();
-  for (uint32_t i = 0, page = 0; i < *sec_header->page_descriptor_count; i++) {
+  for (uint32_t i = 0, page = 0; i < sec_header->page_descriptor_count; i++) {
     // Byteswap the bitfield manually.
     xex2_page_descriptor desc;
     desc.value = xe::byte_swap(sec_header->page_descriptors[i].value);
