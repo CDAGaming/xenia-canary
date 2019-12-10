@@ -64,6 +64,14 @@ dword_result_t XamShowNuiTroubleshooterUI(unknown_t unk1, unknown_t unk2,
 }
 DECLARE_XAM_EXPORT1(XamShowNuiTroubleshooterUI, kNone, kStub);
 
+dword_result_t XamNuiIsDeviceReady() { return X_STATUS_SUCCESS; }
+
+DECLARE_XAM_EXPORT1(XamNuiIsDeviceReady, kNone, kStub);
+
+dword_result_t XamIsNuiAutomationEnabled() { return X_STATUS_SUCCESS; }
+
+DECLARE_XAM_EXPORT1(XamIsNuiAutomationEnabled, kNone, kStub);
+
 void RegisterNuiExports(xe::cpu::ExportResolver* export_resolver,
                         KernelState* kernel_state) {}
 
