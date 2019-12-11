@@ -26,14 +26,22 @@ dword_result_t XamAvatarInitialize(
     dword_t unk6               // flags - 0x00300000, 0x30, etc
 ) {
   // Negative to fail. Game should immediately call XamAvatarShutdown.
-  return ~0u;
+  return X_STATUS_SUCCESS;  //~0u;
 }
 DECLARE_XAM_EXPORT1(XamAvatarInitialize, kAvatars, kStub);
+
+dword_result_t XamAvatarLoadAnimation(dword_t asset_id_ptr, dword_t flags,
+  dword_t output) {
+  return X_STATUS_SUCCESS;
+}
+
+DECLARE_XAM_EXPORT1(XamAvatarLoadAnimation, kAvatars, kStub);
 
 void XamAvatarShutdown() {
   // No-op.
 }
 DECLARE_XAM_EXPORT1(XamAvatarShutdown, kAvatars, kStub);
+
 
 void RegisterAvatarExports(xe::cpu::ExportResolver* export_resolver,
                            KernelState* kernel_state) {}
