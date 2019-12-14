@@ -744,7 +744,7 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
 }
 DECLARE_XAM_EXPORT1(XamUserCreateTitlesPlayedEnumerator, kUserProfiles, kImplemented);
 
-dword_result_t XamReadTile(dword_t section_id, dword_t game_id, dword_t item_id,
+dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
                            dword_t offset, lpdword_t output_ptr,
                            lpdword_t buffer_size_ptr,
                            lpdword_t overlapped_ptr) {
