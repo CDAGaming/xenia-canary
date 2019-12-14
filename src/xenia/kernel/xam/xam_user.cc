@@ -572,7 +572,8 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
   *handle_ptr = e->handle();
 
   // Copy achievements into the enumerator if game GPD is loaded
-  auto* game_gpd = kernel_state()->user_profile()->GetTitleGpd(title_id);
+  auto* game_gpd = kernel_state()->user_profile()->GetTitleGpd(
+      title_id ? title_id : kernel_state()->title_id());
   if (!game_gpd) {
     XELOGE(
         "XamUserCreateAchievementEnumerator failed to find GPD for title %X!",
