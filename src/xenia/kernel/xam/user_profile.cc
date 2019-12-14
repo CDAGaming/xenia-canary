@@ -171,6 +171,11 @@ UserProfile::UserProfile() : dash_gpd_(kDashboardID) {
   AddSetting(std::make_unique<BinarySetting>(0x63E83FFE));
   // XPROFILE_TITLE_SPECIFIC3
   AddSetting(std::make_unique<BinarySetting>(0x63E83FFD));
+
+  // Unknown, but on NXE dash it causes profile name & gamerscore appear
+  AddSetting(std::make_unique<BinarySetting>(0x63E80044));
+  AddSetting(std::make_unique<BinarySetting>(0x7008004F));
+  AddSetting(std::make_unique<BinarySetting>(0x61180050));
 }
 
 void UserProfile::LoadProfile() {
