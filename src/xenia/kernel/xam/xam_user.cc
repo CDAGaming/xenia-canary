@@ -192,6 +192,28 @@ dword_result_t XamUserGetName(dword_t user_index, lpstring_t buffer,
 }
 DECLARE_XAM_EXPORT1(XamUserGetName, kUserProfiles, kImplemented);
 
+dword_result_t XamUserGetGamerTag(dword_t user_index, lpwstring_t buffer,
+                                  dword_t buffer_len) {
+  if (user_index) {
+    return X_ERROR_NO_SUCH_USER;
+  }
+
+  if (!buffer_len) {
+    return X_ERROR_SUCCESS;
+  }
+
+  const auto& user_profile = kernel_state()->user_profile();
+  const auto& user_name = xe::to_wstring(user_profile->name());
+
+  size_t copy_length = std::min({size_t(buffer_len * 2), user_name.size(),
+                                 static_cast<size_t>(buffer_len * 2) - 1});
+
+  kernel_memory()->Fill(buffer, buffer_len * 2, 0x00);
+  xe::copy_and_swap<wchar_t>(buffer, user_name.c_str(), copy_length);
+  return X_ERROR_SUCCESS;
+}
+DECLARE_XAM_EXPORT1(XamUserGetGamerTag, kUserProfiles, kImplemented);
+
 typedef struct {
   xe::be<uint32_t> setting_count;
   xe::be<uint32_t> settings_ptr;
