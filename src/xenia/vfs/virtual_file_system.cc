@@ -27,7 +27,8 @@ VirtualFileSystem::~VirtualFileSystem() {
 }
 Entry* VirtualFileSystem::ResolveDevice(const std::string& devicepath) {
   auto global_lock = global_critical_region_.Acquire();
-
+  
+  XELOGI("ResolveDevice (%s) pre-normalized", devicepath.c_str());
   // Resolve relative paths
   std::string normalized_path(xe::filesystem::CanonicalizePath(devicepath));
 
@@ -96,6 +97,7 @@ bool VirtualFileSystem::IsSymbolicLink(const std::string& path) {
 
 bool VirtualFileSystem::FindSymbolicLink(const std::string& path,
                                          std::string& target) {
+  XELOGI("FindSymbolicLink (%s)", path.c_str());
   auto it =
       std::find_if(symlinks_.cbegin(), symlinks_.cend(), [&](const auto& s) {
         return xe::find_first_of_case(path, s.first) == 0;
@@ -109,6 +111,8 @@ bool VirtualFileSystem::FindSymbolicLink(const std::string& path,
 
 bool VirtualFileSystem::ResolveSymbolicLink(const std::string& path,
                                             std::string& result) {
+  
+  XELOGI("ResolveSymbolicLink (%s)", path.c_str());
   result = path;
   bool was_resolved = false;
   while (true) {
@@ -130,6 +134,8 @@ bool VirtualFileSystem::ResolveSymbolicLink(const std::string& path,
 
 Entry* VirtualFileSystem::ResolvePath(const std::string& path) {
   auto global_lock = global_critical_region_.Acquire();
+  
+  XELOGI("ResolvePath (%s) Pre-normalized", path.c_str());
 
   // Resolve relative paths
   std::string normalized_path(xe::filesystem::CanonicalizePath(path));
@@ -156,6 +162,8 @@ Entry* VirtualFileSystem::ResolvePath(const std::string& path) {
 }
 
 Entry* VirtualFileSystem::ResolveBasePath(const std::string& path) {
+
+  XELOGI("ResolveBasePath (%s) Pre-normalized", path.c_str());
   auto base_path = xe::find_base_path(path);
   return ResolvePath(base_path);
 }
@@ -163,6 +171,8 @@ Entry* VirtualFileSystem::ResolveBasePath(const std::string& path) {
 Entry* VirtualFileSystem::CreatePath(const std::string& path,
                                      uint32_t attributes) {
   // Create all required directories recursively.
+  
+  XELOGI("CreatePath (%s) Pre-normalized", path.c_str());
   auto path_parts = xe::split_path(path);
   if (path_parts.empty()) {
     return nullptr;
@@ -219,6 +229,8 @@ X_STATUS VirtualFileSystem::OpenFile(const std::string& path,
   if (desired_access & FileAccess::kGenericAll) {
     desired_access |= FileAccess::kFileReadData | FileAccess::kFileWriteData;
   }
+  
+  XELOGI("OpenFile (%s) Pre-normalized", path.c_str());
 
   // Lookup host device/parent path.
   // If no device or parent, fail.
