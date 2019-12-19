@@ -332,8 +332,8 @@ class D3D12CommandProcessor : public CommandProcessor {
   uint8_t* gamma_ramp_upload_mapping_ = nullptr;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT gamma_ramp_footprints_[kQueueFrames * 2];
 
-  static constexpr uint32_t kSwapTextureWidth = 1280;
-  static constexpr uint32_t kSwapTextureHeight = 720;
+  static constexpr uint32_t kSwapTextureWidth = 1920;
+  static constexpr uint32_t kSwapTextureHeight = 1080;
   inline std::pair<uint32_t, uint32_t> GetSwapTextureSize() const {
     if (texture_cache_->IsResolutionScale2X()) {
       return std::make_pair(kSwapTextureWidth * 2, kSwapTextureHeight * 2);
