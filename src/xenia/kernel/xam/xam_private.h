@@ -31,6 +31,8 @@ void RegisterInputExports(xe::cpu::ExportResolver* export_resolver,
                           KernelState* kernel_state);
 void RegisterLocaleExports(xe::cpu::ExportResolver* export_resolver,
                            KernelState* kernel_state);
+void RegisterMiscExports(xe::cpu::ExportResolver* export_resolver,
+                           KernelState* kernel_state);
 void RegisterMsgExports(xe::cpu::ExportResolver* export_resolver,
                         KernelState* kernel_state);
 void RegisterNetExports(xe::cpu::ExportResolver* export_resolver,

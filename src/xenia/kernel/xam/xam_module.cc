@@ -29,6 +29,7 @@ XamModule::XamModule(Emulator* emulator, KernelState* kernel_state)
   RegisterInfoExports(export_resolver_, kernel_state_);
   RegisterInputExports(export_resolver_, kernel_state_);
   RegisterLocaleExports(export_resolver_, kernel_state_);
+  RegisterMiscExports(export_resolver_, kernel_state_);
   RegisterMsgExports(export_resolver_, kernel_state_);
   RegisterNetExports(export_resolver_, kernel_state_);
   RegisterNotifyExports(export_resolver_, kernel_state_);
