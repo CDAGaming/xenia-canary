@@ -488,54 +488,55 @@ DECLARE_XAM_EXPORT1(XamContentDelete, kContent, kImplemented);
 dword_result_t XamSwapDisc(dword_t disc_number,
                            pointer_t<kernel::X_KEVENT> completion_handle,
                            lpstring_t error_message) {
-  auto filesystem = kernel_state()->file_system();
-  auto mount_path = "\\Device\\LauncherData";
-
-  if (filesystem->ResolveDevice(mount_path) != NULL) {
-    filesystem->UnregisterDevice(mount_path);
-  }
 
   // error_message not correct type/ptr
-  XELOGI("XamSwapDisc requests disc %d.", disc_number);
-  std::wstring local_path = app::EmulatorWindow::SwapNext();
-  XELOGI("SwapNext returned path %S.", local_path.c_str());
+  XELOGI("XamSwapDisc requests disc:(%d)", disc_number);
+  std::wstring local_path = app::EmulatorWindow::SwapNext(disc_number);
+  XELOGD("XamSwapDisc SwapNext returned path:( %S )", local_path.c_str());
+  if (local_path != L"") {
+    auto filesystem = kernel_state()->file_system();
+    auto mount_path = "\\Device\\LauncherData";
+    auto last_slash = local_path.find_last_of(xe::kPathSeparator);
+    auto last_dot = local_path.find_last_of('.');
 
-  auto last_slash = local_path.find_last_of(xe::kPathSeparator);
-  auto last_dot = local_path.find_last_of('.');
+    if (filesystem->ResolveDevice(mount_path) != NULL) {
+      filesystem->UnregisterDevice(mount_path);
+    }
 
-  if (last_dot < last_slash) {
-    last_dot = std::wstring::npos;
+    if (last_dot < last_slash) {
+      last_dot = std::wstring::npos;
+    }
+    if (last_dot == std::wstring::npos) {
+      // Likely an STFS container.
+      auto dev =
+          std::make_unique<vfs::StfsContainerDevice>(mount_path, local_path);
+      dev->Initialize();
+      filesystem->RegisterDevice(std::move(dev));
+    };
+    auto extension = local_path.substr(last_dot);
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   tolower);
+    if (extension == L".xex" || extension == L".elf" || extension == L".exe") {
+      // Treat as a naked xex file.
+      auto parent_path = xe::find_base_path(local_path);
+      auto dev =
+          std::make_unique<vfs::HostPathDevice>(mount_path, parent_path, true);
+      dev->Initialize();
+      filesystem->RegisterDevice(std::move(dev));
+    } else {
+      // Assume a disc image.
+      auto dev = std::make_unique<vfs::DiscImageDevice>(mount_path, local_path);
+      dev->Initialize();
+      filesystem->RegisterDevice(std::move(dev));
+    }
+
+    // Register the new device to d: and game:
+    filesystem->UnregisterSymbolicLink("d:");
+    filesystem->UnregisterSymbolicLink("game:");
+    filesystem->RegisterSymbolicLink("d:", mount_path);
+    filesystem->RegisterSymbolicLink("game:", mount_path);
+
   }
-  if (last_dot == std::wstring::npos) {
-    // Likely an STFS container.
-    auto dev =
-        std::make_unique<vfs::StfsContainerDevice>(mount_path, local_path);
-    dev->Initialize();
-    filesystem->RegisterDevice(std::move(dev));
-  };
-  auto extension = local_path.substr(last_dot);
-  std::transform(extension.begin(), extension.end(), extension.begin(),
-                 tolower);
-  if (extension == L".xex" || extension == L".elf" || extension == L".exe") {
-    // Treat as a naked xex file.
-    auto parent_path = xe::find_base_path(local_path);
-    auto dev =
-        std::make_unique<vfs::HostPathDevice>(mount_path, parent_path, true);
-    dev->Initialize();
-    filesystem->RegisterDevice(std::move(dev));
-  } else {
-    // Assume a disc image.
-    auto dev = std::make_unique<vfs::DiscImageDevice>(mount_path, local_path);
-    dev->Initialize();
-    filesystem->RegisterDevice(std::move(dev));
-  }
-
-  // Register the new device to d: and game:
-  filesystem->UnregisterSymbolicLink("d:");
-  filesystem->UnregisterSymbolicLink("game:");
-  filesystem->RegisterSymbolicLink("d:", mount_path);
-  filesystem->RegisterSymbolicLink("game:", mount_path);
-
   // Resolve the pending disc swap event
   auto kevent = xboxkrnl::xeKeSetEvent(completion_handle, 1, 0);
 
@@ -543,8 +544,10 @@ dword_result_t XamSwapDisc(dword_t disc_number,
   auto object = XObject::GetNativeObject<XObject>(
       kernel_state(),
       kernel_memory()->virtual_membase() + (dword_t)completion_handle);
+
   if (object) {
-    object->Release();
+  XELOGI("XamSwapDisc Release object");
+    object->ReleaseHandle();
   }
 
   return 0;

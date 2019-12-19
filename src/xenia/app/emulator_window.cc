@@ -432,14 +432,16 @@ void EmulatorWindow::RecentList(int index) {
   }
 }
 
-std::wstring EmulatorWindow::SwapNext() {
+std::wstring EmulatorWindow::SwapNext(int8_t disc_number) {
   std::wstring path = L"";
 
   auto file_picker = xe::ui::FilePicker::Create();
   file_picker->set_mode(ui::FilePicker::Mode::kOpen);
   file_picker->set_type(ui::FilePicker::Type::kFile);
   file_picker->set_multi_selection(false);
-  file_picker->set_title(L"Select Content Package");
+  char titlebar[16];
+  sprintf(titlebar, "Select Disc:(%d)", disc_number);
+  file_picker->set_title(xe::to_wstring(titlebar));
   file_picker->set_extensions({
       {L"Supported Files", L"*.iso;*.xex;*.xcp;*.*"},
       {L"Disc Image (*.iso)", L"*.iso"},
@@ -453,6 +455,11 @@ std::wstring EmulatorWindow::SwapNext() {
       path = selected_files[0];
     }
   }
+  if (path != L"") {
+    // Normalize the path and make absolute.
+    std::wstring abs_path = xe::to_absolute_path(path);
+  }
+  XELOGD("SwapNext Return Path:(%S)", path.c_str());
   return path;
 }
 
