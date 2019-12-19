@@ -401,7 +401,7 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
   kernel_state()->BroadcastNotification(0x9, true);
 
   auto ui_fn = [content_type, device_id_ptr, overlapped]() {
-    XELOGI("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
+    XELOGW("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
            content_type, device_id_ptr, (bool)overlapped);
 
     // NOTE: 0xF00D0000 magic from xam_content.cc
@@ -416,17 +416,19 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
         *device_id_ptr = 0xF00D0000 | 0x0003;
         break;
       default:
+        XELOGW("XamShowDeviceSelectorUI Unhandled Content_type:(%X)", content_type);
         assert_unhandled_case(content_type);
         *device_id_ptr = 0xF00D0000 | 0x0001;
         break;
     }
 
+    xe::threading::Sleep(std::chrono::milliseconds(500));
+
     if (overlapped) {
       kernel_state()->CompleteOverlappedImmediate(overlapped, X_ERROR_SUCCESS);
     }
 
-    // Sleep for 1 second, act like user is making a choice
-    xe::threading::Sleep(std::chrono::milliseconds(500));
+    xe::threading::Sleep(std::chrono::milliseconds(100));
 
     // Broadcast XN_SYS_UI = true followed by XN_SYS_UI = false
     kernel_state()->BroadcastNotification(0x9, true);
@@ -443,7 +445,7 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
     ui_thread->set_name("XamShowDeviceSelectorUI Thread");
     ui_thread->Create();
     while (ui_thread->last_error() != X_ERROR_SUCCESS) {
-      xe::threading::Sleep(std::chrono::milliseconds(101));
+      xe::threading::Sleep(std::chrono::milliseconds(110));
     }
     return X_ERROR_IO_PENDING;
   } else {
