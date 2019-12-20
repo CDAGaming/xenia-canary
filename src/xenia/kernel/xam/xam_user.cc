@@ -194,7 +194,7 @@ DECLARE_XAM_EXPORT1(XamUserGetName, kUserProfiles, kImplemented);
 
 dword_result_t XamUserGetGamerTag(dword_t user_index, lpwstring_t buffer,
                                   dword_t buffer_len) {
-  if (user_index) {
+  if (user_index && user_index != 0xFF) {
     return X_ERROR_NO_SUCH_USER;
   }
 
