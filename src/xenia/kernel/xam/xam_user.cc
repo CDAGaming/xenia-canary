@@ -767,6 +767,13 @@ dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
 }
 DECLARE_XAM_EXPORT1(XamReadTile, kUserProfiles, kSketchy);
 
+dword_result_t XamUserIsOnlineEnabled() {
+  // 0 - Offline
+  // 1 - Online
+  return 1;
+}
+DECLARE_XAM_EXPORT1(XamUserIsOnlineEnabled, kUserProfiles, kStub);
+
 }  // namespace xdbf
 }  // namespace xam
 }  // namespace kernel
