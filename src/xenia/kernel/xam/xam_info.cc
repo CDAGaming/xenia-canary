@@ -436,6 +436,17 @@ dword_result_t XamQueryLiveHiveW(lpwstring_t name, lpvoid_t out_buf,
 }
 DECLARE_XAM_EXPORT1(XamQueryLiveHiveW, kNone, kStub);
 
+void XamLoaderGetMediaInfo(lpdword_t unk1, dword_t unk2) {
+  // 0 - No Disc
+  // 1 - Game Disc
+  // 3 - HD DVD
+  // 5 - DVD
+  // 7 - CD
+  xe::store_and_swap<uint32_t>(unk1, 0);
+}
+
+DECLARE_XAM_EXPORT1(XamLoaderGetMediaInfo, kUserProfiles, kStub);
+
 void RegisterInfoExports(xe::cpu::ExportResolver* export_resolver,
                          KernelState* kernel_state) {}
 
