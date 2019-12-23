@@ -1828,4 +1828,14 @@ uint32_t PhysicalHeap::GetPhysicalAddress(uint32_t address) const {
   return address;
 }
 
+uint32_t Memory::AllocSpaceForWStringInSystemHeap(std::wstring phrase) {
+  uint32_t address = SystemHeapAlloc((uint32_t)phrase.size());
+
+  auto* place_addr = TranslateVirtual<wchar_t*>(address);
+
+  memset(place_addr, 0, (uint32_t)phrase.size());
+  xe::copy_and_swap(place_addr, phrase.c_str(), (uint32_t)phrase.size());
+  return address;
+}
+
 }  // namespace xe

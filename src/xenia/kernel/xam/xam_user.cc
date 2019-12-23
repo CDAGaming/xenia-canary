@@ -610,19 +610,6 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
     return X_ERROR_SUCCESS;
   }
 
-  static uint32_t placeholder = 0;
-
-  if (!placeholder) {
-    const wchar_t* placeholder_val = L"<placeholder>";
-
-    placeholder = kernel_memory()->SystemHeapAlloc(
-        ((uint32_t)wcslen(placeholder_val) + 1) * 2);
-    auto* place_addr = kernel_memory()->TranslateVirtual<wchar_t*>(placeholder);
-
-    memset(place_addr, 0, (wcslen(placeholder_val) + 1) * 2);
-    xe::copy_and_swap(place_addr, placeholder_val, wcslen(placeholder_val));
-  }
-
   std::vector<xdbf::Achievement> achievements;
   game_gpd->GetAchievements(&achievements);
 
@@ -638,9 +625,14 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
     // very bad...
 
     // maybe we could alloc these in guest when the title GPD is first loaded?
-    details->label_ptr = placeholder;
-    details->description_ptr = placeholder;
-    details->unachieved_ptr = placeholder;
+    // Only the 1888 dashboard reallocates them every time
+    // Newer dashes allocates this only once
+    details->label_ptr =
+        kernel_memory()->AllocSpaceForWStringInSystemHeap(ach.label);
+    details->description_ptr =
+        kernel_memory()->AllocSpaceForWStringInSystemHeap(ach.description);
+    details->unachieved_ptr =
+        kernel_memory()->AllocSpaceForWStringInSystemHeap(ach.unachieved_desc);
   }
 
   XELOGD("XamUserCreateAchievementEnumerator: added %d items to enumerator",

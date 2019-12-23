@@ -465,6 +465,9 @@ class Memory {
   // Gets the physical base heap.
   VirtualHeap* GetPhysicalHeap();
 
+  // Allocate space for wstring in memory and returns its address
+  uint32_t AllocSpaceForWStringInSystemHeap(std::wstring phrase);
+
   // Dumps a map of all allocated memory to the log.
   void DumpMap();
 
