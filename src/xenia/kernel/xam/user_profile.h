@@ -318,6 +318,7 @@ class UserProfile {
   std::string name() const { return account_.GetGamertagString(); }
   // uint32_t signin_state() const { return 1; }
   uint32_t CalculateUserGamerscore() const;
+  uint32_t GetAmountOfPlayedTitles() const { return (uint32_t)title_gpds_.size(); }
 
   void AddSetting(std::unique_ptr<Setting> setting);
   Setting* GetSetting(uint32_t setting_id);
