@@ -738,7 +738,9 @@ DECLARE_XAM_EXPORT1(XamUserCreateTitlesPlayedEnumerator, kUserProfiles, kImpleme
 dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
                            dword_t offset, lpdword_t output_ptr,
                            lpdword_t buffer_size_ptr,
-                           lpdword_t overlapped_ptr) {
+                           dword_t overlapped) {
+  uint32_t buffer_size = buffer_size_ptr ? *buffer_size_ptr : 0;
+
   if (!output_ptr) {
     return X_ERROR_FILE_NOT_FOUND;
   }
@@ -751,12 +753,28 @@ dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
   }
 
   // Section 2 == images
-  Entry* entry = game_spa->GetEntry(2, item_id.value());
-  memcpy_s(output_ptr, *buffer_size_ptr, entry->data.data(), entry->info.size);
+  Entry* entry = game_spa->GetEntry((uint16_t)SpaSection::kImage, item_id.value());
 
+  if (!buffer_size) {
+    buffer_size = entry->info.size;
+  }
+
+  memcpy_s(output_ptr, entry->info.size, entry->data.data(), entry->info.size);
+
+  if (overlapped) {
+    kernel_state()->CompleteOverlappedImmediate(overlapped, X_ERROR_SUCCESS);
+    return X_ERROR_IO_PENDING;
+  }
   return X_ERROR_SUCCESS;
 }
 DECLARE_XAM_EXPORT1(XamReadTile, kUserProfiles, kSketchy);
+
+dword_result_t XamReadTileEx(dword_t section_id, dword_t game_id, qword_t item_id,
+                           dword_t offset, dword_t unk1,
+                           dword_t unk2, lpdword_t output_ptr) {
+  return XamReadTile(section_id, game_id, item_id, offset, output_ptr, 0, 0);
+}
+DECLARE_XAM_EXPORT1(XamReadTileEx, kUserProfiles, kSketchy);
 
 dword_result_t XamUserIsOnlineEnabled() {
   // 0 - Offline
