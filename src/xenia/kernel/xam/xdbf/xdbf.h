@@ -224,6 +224,103 @@ struct Achievement {
   }
 };
 
+struct Setting {
+  X_XDBF_SETTING_ID id = (X_XDBF_SETTING_ID)0;
+  X_XUSER_DATA value;
+  std::vector<uint8_t> extraData;
+
+  Setting() { value.type = X_XUSER_DATA_TYPE::kNull; }
+  Setting(X_XDBF_SETTING_ID id, uint32_t value) : id(id) { Value(value); }
+  Setting(X_XDBF_SETTING_ID id, uint64_t value) : id(id) { Value(value); }
+  Setting(X_XDBF_SETTING_ID id, float value) : id(id) { Value(value); }
+  Setting(X_XDBF_SETTING_ID id, const std::wstring& value) : id(id) {
+    Value(value);
+  }
+  Setting(X_XDBF_SETTING_ID id, const std::initializer_list<uint8_t>& value)
+      : id(id), extraData(value) {
+    this->value.type = X_XUSER_DATA_TYPE::kBinary;
+  }
+
+  bool IsTitleSpecific() const {
+    return id == XPROFILE_TITLE_SPECIFIC1 || id == XPROFILE_TITLE_SPECIFIC2 ||
+           id == XPROFILE_TITLE_SPECIFIC3;
+  }
+
+  void ReadGPD(const X_XDBF_GPD_SETTING* src) {
+    id = src->setting_id;
+    memcpy(&value, &src->value, sizeof(X_XUSER_DATA));
+
+    if (value.type == X_XUSER_DATA_TYPE::kBinary) {
+      extraData.resize(src->value.binary.cbData);
+      memcpy(extraData.data(), (uint8_t*)&src[1], src->value.binary.cbData);
+    } else if (value.type == X_XUSER_DATA_TYPE::kUnicode) {
+      extraData.resize(src->value.string.cbData);
+      memcpy(extraData.data(), (uint8_t*)&src[1], src->value.string.cbData);
+    }
+  }
+
+  void Value(uint32_t new_value) {
+    value.type = X_XUSER_DATA_TYPE::kInt32;
+    assert(XPROFILEID_TYPE(id) == value.type);
+
+    value.nData = new_value;
+    extraData.clear();
+  }
+
+  void Value(uint64_t new_value) {
+    value.type = X_XUSER_DATA_TYPE::kInt64;
+    if (XPROFILEID_TYPE(id) == X_XUSER_DATA_TYPE::kDateTime) {
+      value.type = X_XUSER_DATA_TYPE::kDateTime;
+    }
+
+    assert(XPROFILEID_TYPE(id) == value.type);
+
+    value.i64Data = new_value;
+    extraData.clear();
+  }
+
+  void Value(float new_value) {
+    value.type = X_XUSER_DATA_TYPE::kFloat;
+    assert(XPROFILEID_TYPE(id) == value.type);
+
+    value.fData = new_value;
+    extraData.clear();
+  }
+
+  void Value(double new_value) {
+    value.type = X_XUSER_DATA_TYPE::kDouble;
+    assert(XPROFILEID_TYPE(id) == value.type);
+
+    value.dblData = new_value;
+    extraData.clear();
+  }
+
+  void Value(const std::wstring& new_value) {
+    value.type = X_XUSER_DATA_TYPE::kUnicode;
+    assert(XPROFILEID_TYPE(id) == value.type);
+
+    value.i64Data = 0;
+    value.string.cbData =
+        (uint32_t)((new_value.length() + 1) * sizeof(wchar_t));
+    extraData.resize(value.string.cbData);
+    xe::copy_and_swap<wchar_t>((wchar_t*)extraData.data(), new_value.c_str(),
+                               new_value.length());
+    *(wchar_t*)(extraData.data() + value.string.cbData - 2) =
+        0;  // null-terminate
+  }
+
+  std::wstring ValueString() {
+    assert(value.type == X_XUSER_DATA_TYPE::kUnicode);
+
+    std::vector<uint8_t> swapped;
+    swapped.resize(extraData.size());
+    xe::copy_and_swap<wchar_t>((wchar_t*)swapped.data(),
+                               (wchar_t*)extraData.data(),
+                               extraData.size() / sizeof(wchar_t));
+    return std::wstring((wchar_t*)swapped.data());
+  }
+};
+
 struct Entry {
   X_XDBF_ENTRY info;
   std::vector<uint8_t> data;
@@ -273,13 +370,19 @@ class GpdFile : public XdbfFile {
   bool GetAchievement(uint16_t id, Achievement* dest);
   uint32_t GetAchievements(std::vector<Achievement>* achievements) const;
 
+  bool GetSetting(X_XDBF_SETTING_ID id, Setting* dest);
+  uint32_t GetSettings(std::vector<Setting>* settings) const;
+
   bool GetTitle(uint32_t title_id, TitlePlayed* title);
   uint32_t GetTitles(std::vector<TitlePlayed>* titles) const;
 
-  // Updates (or adds) an achievement
+  // Updates/adds an achievement
   bool UpdateAchievement(const Achievement& ach);
 
-  // Updates (or adds) a title
+  // Updates/adds a setting
+  bool UpdateSetting(const Setting& setting);
+
+  // Updates/adds a title
   bool UpdateTitle(const TitlePlayed& title);
 
   uint32_t GetTitleId() { return title_id_; }

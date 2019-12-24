@@ -219,25 +219,26 @@ static_assert_size(X_USER_READ_PROFILE_SETTINGS, 8);
 
 typedef struct {
   xe::be<uint32_t> from;
-  xe::be<uint32_t> unk04;
-  xe::be<uint32_t> user_index;
-  xe::be<uint32_t> unk0C;
-  xe::be<uint32_t> setting_id;
-  xe::be<uint32_t> unk14;
-  uint8_t setting_data[16];
+  union {
+    xe::be<uint32_t> user_index;
+    xe::be<uint64_t> user_xuid;
+  } user;
+  xdbf::X_XDBF_GPD_SETTING setting;
 } X_USER_READ_PROFILE_SETTING;
 static_assert_size(X_USER_READ_PROFILE_SETTING, 40);
 
 // https://github.com/oukiar/freestyledash/blob/master/Freestyle/Tools/Generic/xboxtools.cpp
 dword_result_t XamUserReadProfileSettings(
-    dword_t title_id, dword_t user_index, dword_t unk_0, dword_t unk_1,
+    dword_t title_id, dword_t user_index, dword_t num_xuids, lpqword_t xuids,
     dword_t setting_count, lpdword_t setting_ids, lpdword_t buffer_size_ptr,
     lpvoid_t buffer_ptr, dword_t overlapped_ptr) {
   uint32_t buffer_size =
       !buffer_size_ptr ? 0u : static_cast<uint32_t>(*buffer_size_ptr);
 
-  assert_zero(unk_0);
-  assert_zero(unk_1);
+  uint64_t xuid = 0;
+  if (num_xuids && xuids) {
+    xuid = *xuids;
+  }
 
   // TODO(gibbed): why is this a thing?
   uint32_t actual_user_index = user_index;
@@ -269,30 +270,15 @@ dword_result_t XamUserReadProfileSettings(
 
   // Compute required extra size.
   uint32_t size_needed = base_size_needed;
-  bool any_missing = false;
   for (uint32_t n = 0; n < setting_count; ++n) {
-    uint32_t setting_id = setting_ids[n];
-    auto setting = user_profile->GetSetting(setting_id);
-    if (setting) {
-      if (setting->is_set) {
-        auto extra_size = static_cast<uint32_t>(setting->extra_size());
-        size_needed += extra_size;
-      }
+    auto setting_id = (xdbf::X_XDBF_SETTING_ID)(uint32_t)setting_ids[n];
+    xdbf::Setting setting;
+    if (user_profile->GetDashboardGpd()->GetSetting(setting_id, &setting)) {
+      size_needed += (uint32_t)setting.extraData.size();
     } else {
-      any_missing = true;
       XELOGE("XamUserReadProfileSettings requested unimplemented setting %.8X",
              setting_id);
     }
-  }
-
-  if (any_missing) {
-    // TODO(benvanik): don't fail? most games don't even check!
-    if (overlapped_ptr) {
-      kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
-                                                  X_ERROR_INVALID_PARAMETER);
-      return X_ERROR_IO_PENDING;
-    }
-    return X_ERROR_INVALID_PARAMETER;
   }
 
   *buffer_size_ptr = size_needed;
@@ -312,27 +298,60 @@ dword_result_t XamUserReadProfileSettings(
   auto out_setting =
       reinterpret_cast<X_USER_READ_PROFILE_SETTING*>(buffer_ptr + 8);
 
-  size_t buffer_offset = base_size_needed;
+  uint32_t buffer_offset = base_size_needed;
   for (uint32_t n = 0; n < setting_count; ++n) {
-    uint32_t setting_id = setting_ids[n];
-    auto setting = user_profile->GetSetting(setting_id);
+    auto setting_id = (xdbf::X_XDBF_SETTING_ID)(uint32_t)setting_ids[n];
+    xdbf::Setting setting;
+
+    auto gpd = user_profile->GetDashboardGpd();
+    if (title_id != 0xFFFE07D1) {
+      gpd = user_profile->GetTitleGpd(title_id);
+    }
+
+    bool exists = gpd && gpd->GetSetting(setting_id, &setting);
+
+    // TODO: fix binary & unicode settings crashing dash.xex!
+    if (setting.value.type == xdbf::X_XUSER_DATA_TYPE::kBinary ||
+        setting.value.type == xdbf::X_XUSER_DATA_TYPE::kUnicode) {
+      exists = false;
+    }
 
     std::memset(out_setting, 0, sizeof(X_USER_READ_PROFILE_SETTING));
-    out_setting->from =
-        !setting || !setting->is_set ? 0 : setting->is_title_specific() ? 2 : 1;
-    out_setting->user_index = actual_user_index;
-    out_setting->setting_id = setting_id;
+    out_setting->from = !exists ? 0 : setting.IsTitleSpecific() ? 2 : 1;
+    out_setting->setting.setting_id = setting_id;
 
-    if (setting && setting->is_set) {
-      buffer_offset =
-          setting->Append(&out_setting->setting_data[0], buffer_ptr,
-                          buffer_ptr.guest_address(), buffer_offset);
+    if (num_xuids && xuids) {
+      out_setting->user.user_xuid = xuid;
+    } else {
+      out_setting->user.user_index = actual_user_index;
     }
-    // TODO(benvanik): why did I do this?
-    /*else {
-      std::memset(&out_setting->setting_data[0], 0,
-                  sizeof(out_setting->setting_data));
-    }*/
+
+    if (exists) {
+      memcpy(&out_setting->setting.value, &setting.value,
+             sizeof(xdbf::X_XUSER_DATA));
+
+      if (setting.value.type == xdbf::X_XUSER_DATA_TYPE::kBinary) {
+        memcpy(buffer_ptr.as<uint8_t*>() + buffer_offset,
+               setting.extraData.data(), setting.extraData.size());
+
+        out_setting->setting.value.binary.cbData =
+            (uint32_t)setting.extraData.size();
+        out_setting->setting.value.binary.pbData =
+            buffer_ptr.guest_address() + buffer_offset;
+
+        buffer_offset += (uint32_t)setting.extraData.size();
+      } else if (setting.value.type == xdbf::X_XUSER_DATA_TYPE::kUnicode) {
+        memcpy(buffer_ptr.as<uint8_t*>() + buffer_offset,
+               setting.extraData.data(), setting.extraData.size());
+
+        out_setting->setting.value.string.cbData =
+            (uint32_t)setting.extraData.size();
+        out_setting->setting.value.string.pwszData =
+            buffer_ptr.guest_address() + buffer_offset;
+
+        buffer_offset += (uint32_t)setting.extraData.size();
+      }
+    }
     ++out_setting;
   }
 
@@ -347,29 +366,17 @@ DECLARE_XAM_EXPORT1(XamUserReadProfileSettings, kUserProfiles, kImplemented);
 
 typedef struct {
   xe::be<uint32_t> from;
-  xe::be<uint32_t> unk_04;
-  xe::be<uint32_t> unk_08;
-  xe::be<uint32_t> unk_0c;
-  xe::be<uint32_t> setting_id;
-  xe::be<uint32_t> unk_14;
-
-  // UserProfile::Setting::Type. Appears to be 8-in-32 field, and the upper 24
-  // are not always zeroed by the game.
-  uint8_t type;
-
-  xe::be<uint32_t> unk_1c;
-  // TODO(sabretooth): not sure if this is a union, but it seems likely.
-  // Haven't run into cases other than "binary data" yet.
   union {
-    struct {
-      xe::be<uint32_t> length;
-      xe::be<uint32_t> ptr;
-    } binary;
-  };
+    xe::be<uint32_t> user_index;
+    xe::be<uint64_t> user_xuid;
+  } user;
+
+  xdbf::X_XDBF_GPD_SETTING setting;
 } X_USER_WRITE_PROFILE_SETTING;
+static_assert_size(X_USER_WRITE_PROFILE_SETTING, 0x28);
 
 dword_result_t XamUserWriteProfileSettings(
-    dword_t user_index, dword_t unk, dword_t setting_count,
+    dword_t title_id, dword_t user_index, dword_t setting_count,
     pointer_t<X_USER_WRITE_PROFILE_SETTING> settings, dword_t overlapped_ptr) {
   if (!setting_count || !settings) {
     if (overlapped_ptr) {
@@ -387,58 +394,72 @@ dword_result_t XamUserWriteProfileSettings(
 
   if (actual_user_index) {
     // Only support user 0.
+    if (overlapped_ptr) {
+      kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
+                                                  X_ERROR_NOT_FOUND);
+      return X_ERROR_IO_PENDING;
+    }
     return X_ERROR_NOT_FOUND;
   }
 
   // Update and save settings.
   const auto& user_profile = kernel_state()->user_profile();
 
+  auto gpd = user_profile->GetDashboardGpd();
+  if (title_id != 0xFFFE07D1) {
+    gpd = user_profile->GetTitleGpd(title_id);
+  }
+
+  if (!gpd) {
+    // TODO: find out proper error code for this condition!
+    if (overlapped_ptr) {
+      kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
+                                                  X_ERROR_INVALID_PARAMETER);
+      return X_ERROR_IO_PENDING;
+    }
+    return X_ERROR_INVALID_PARAMETER;
+  }
+
   for (uint32_t n = 0; n < setting_count; ++n) {
     const X_USER_WRITE_PROFILE_SETTING& settings_data = settings[n];
     XELOGD(
         "XamUserWriteProfileSettings: setting index [%d]:"
         " from=%d setting_id=%.8X data.type=%d",
-        n, (uint32_t)settings_data.from, (uint32_t)settings_data.setting_id,
-        settings_data.type);
+        n, (uint32_t)settings_data.from,
+        (uint32_t)settings_data.setting.setting_id,
+        settings_data.setting.value.type);
 
-    xam::UserProfile::Setting::Type settingType =
-        static_cast<xam::UserProfile::Setting::Type>(settings_data.type);
+    xdbf::Setting setting;
+    setting.id = settings_data.setting.setting_id;
+    setting.value.type = settings_data.setting.value.type;
 
-    switch (settingType) {
-      case UserProfile::Setting::Type::CONTENT:
-      case UserProfile::Setting::Type::BINARY: {
-        uint8_t* settings_data_ptr = kernel_state()->memory()->TranslateVirtual(
-            settings_data.binary.ptr);
-        size_t settings_data_len = settings_data.binary.length;
-        std::vector<uint8_t> data_vec;
+    // Retrieve any existing setting data if we can
+    gpd->GetSetting(setting.id, &setting);
 
-        if (settings_data.binary.ptr) {
-          // Copy provided data
-          data_vec.resize(settings_data_len);
-          std::memcpy(data_vec.data(), settings_data_ptr, settings_data_len);
-        } else {
-          // Data pointer was NULL, so just fill with zeroes
-          data_vec.resize(settings_data_len, 0);
-        }
+    // ... and then overwrite it
+    memcpy(&setting.value, &settings_data.setting.value,
+           sizeof(xdbf::X_XUSER_DATA));
 
-        user_profile->AddSetting(
-            std::make_unique<xam::UserProfile::BinarySetting>(
-                settings_data.setting_id, data_vec));
+    if (settings_data.setting.value.type == xdbf::X_XUSER_DATA_TYPE::kBinary) {
+      if (settings_data.setting.value.binary.pbData) {
+        setting.extraData.resize(settings_data.setting.value.binary.cbData);
+        auto* data_ptr = kernel_memory()->TranslateVirtual(
+            settings_data.setting.value.binary.pbData);
+        memcpy(setting.extraData.data(), data_ptr,
+               settings_data.setting.value.binary.cbData);
+      }
+    } else if (settings_data.setting.value.type ==
+               xdbf::X_XUSER_DATA_TYPE::kUnicode) {
+      if (settings_data.setting.value.string.pwszData) {
+        setting.extraData.resize(settings_data.setting.value.string.cbData);
+        auto* data_ptr = kernel_memory()->TranslateVirtual(
+            settings_data.setting.value.string.pwszData);
+        memcpy(setting.extraData.data(), data_ptr,
+               settings_data.setting.value.string.cbData);
+      }
+    }
 
-      } break;
-
-      case UserProfile::Setting::Type::WSTRING:
-      case UserProfile::Setting::Type::DOUBLE:
-      case UserProfile::Setting::Type::FLOAT:
-      case UserProfile::Setting::Type::INT32:
-      case UserProfile::Setting::Type::INT64:
-      case UserProfile::Setting::Type::DATETIME:
-      default:
-
-        XELOGE("XamUserWriteProfileSettings: Unimplemented data type %d",
-               settingType);
-        break;
-    };
+    gpd->UpdateSetting(setting);
   }
 
   if (overlapped_ptr) {
@@ -710,13 +731,11 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
 
   for (auto title : titles) {
     // For some reason dashboard gpd stores info about itself
-    if (title.title_id == kDashboardID) 
-      continue;
+    if (title.title_id == kDashboardID) continue;
 
     // TODO: Look for better check to provide information about demo title
     // or system title
-    if (!title.gamerscore_total || !title.achievements_possible) 
-      continue;
+    if (!title.gamerscore_total || !title.achievements_possible) continue;
 
     auto* details = (xdbf::X_XDBF_GPD_TITLEPLAYED*)e->AppendItem();
     title.WriteGPD(details);

@@ -216,6 +216,7 @@ uint32_t SpaFile::GetAchievements(
       ach.image_id = ach_data->image_id;
       ach.gamerscore = ach_data->gamerscore;
       ach.flags = ach_data->flags;
+      ach.flags |= static_cast<uint32_t>(AchievementPlatform::kX360);
 
       ach.label = xe::to_wstring(
           GetStringTableEntry_(xstr_ptr, ach_data->label_id, xstr_head->count));
@@ -321,6 +322,54 @@ uint32_t GpdFile::GetAchievements(
   return ach_count;
 }
 
+bool GpdFile::GetSetting(X_XDBF_SETTING_ID id, Setting* dest) {
+  for (size_t i = 0; i < entries_.size(); i++) {
+    auto* entry = (Entry*)&entries_[i];
+    if (entry->info.section != static_cast<uint16_t>(GpdSection::kSetting) ||
+        entry->info.id != (uint32_t)id) {
+      continue;
+    }
+
+    auto* setting_data =
+        reinterpret_cast<const X_XDBF_GPD_SETTING*>(entry->data.data());
+
+    if (dest) {
+      dest->ReadGPD(setting_data);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+uint32_t GpdFile::GetSettings(std::vector<Setting>* settings) const {
+  uint32_t count = 0;
+
+  for (size_t i = 0; i < entries_.size(); i++) {
+    auto* entry = (Entry*)&entries_[i];
+    if (entry->info.section != static_cast<uint16_t>(GpdSection::kSetting)) {
+      continue;
+    }
+    if (entry->info.id == 0x100000000 || entry->info.id == 0x200000000) {
+      continue;  // achievement sync data, ignore it
+    }
+
+    count++;
+
+    if (settings) {
+      auto* setting_data =
+          reinterpret_cast<const X_XDBF_GPD_SETTING*>(entry->data.data());
+
+      Setting setting;
+      setting.ReadGPD(setting_data);
+
+      settings->push_back(setting);
+    }
+  }
+
+  return count;
+}
+
 bool GpdFile::GetTitle(uint32_t title_id, TitlePlayed* dest) {
   for (size_t i = 0; i < entries_.size(); i++) {
     auto* entry = (Entry*)&entries_[i];
@@ -404,6 +453,36 @@ bool GpdFile::UpdateAchievement(const Achievement& ach) {
                              ach.description.size());
   xe::copy_and_swap<wchar_t>((wchar_t*)unach_ptr, ach.unachieved_desc.c_str(),
                              ach.unachieved_desc.size());
+
+  return UpdateEntry(ent);
+}
+
+bool GpdFile::UpdateSetting(const Setting& setting) {
+  Entry ent;
+  ent.info.section = static_cast<uint16_t>(GpdSection::kSetting);
+  ent.info.id = setting.id;
+
+  // calculate entry size...
+  size_t est_size = sizeof(X_XDBF_GPD_SETTING);
+  est_size += setting.extraData.size();
+
+  ent.data.resize(est_size);
+  memset(ent.data.data(), 0, est_size);
+
+  auto* setting_data = reinterpret_cast<X_XDBF_GPD_SETTING*>(ent.data.data());
+  setting_data->setting_id = setting.id;
+  memcpy(&setting_data->value, &setting.value, sizeof(X_XUSER_DATA));
+  if (setting.value.type == X_XUSER_DATA_TYPE::kBinary) {
+    setting_data->value.binary.cbData = (uint32_t)setting.extraData.size();
+    // todo: check size against size stored inside ID!
+    memcpy(&setting_data[1], setting.extraData.data(),
+           setting.extraData.size());
+  } else if (setting.value.type == X_XUSER_DATA_TYPE::kUnicode) {
+    setting_data->value.string.cbData = (uint32_t)setting.extraData.size();
+    // todo: check size against size stored inside ID!
+    memcpy(&setting_data[1], setting.extraData.data(),
+           setting.extraData.size());
+  }
 
   return UpdateEntry(ent);
 }
