@@ -138,15 +138,88 @@ void UserProfile::LoadProfile() {
   mmap_ = MappedMemory::Open(
       xe::to_wstring(cvars::profile_directory) + L"FFFE07D1.gpd",
       MappedMemory::Mode::kRead);
-  if (!mmap_) {
-    XELOGW(
-        "Failed to open dash GPD (FFFE07D1.gpd) for reading, using blank one");
-    return;
+  if (mmap_) {
+    dash_gpd_.Read(mmap_->data(), mmap_->size());
+    mmap_->Close();
+  } else {
+    XELOGW("Failed to read dash GPD (FFFE07D1.gpd), using blank one");
+
+    // Create empty settings syncdata, helps tools identify this XDBF as a GPD
+    xdbf::Entry ent;
+    ent.info.section = static_cast<uint16_t>(xdbf::GpdSection::kSetting);
+    ent.info.id = 0x200000000;
+    ent.data.resize(0x18);
+    memset(ent.data.data(), 0, 0x18);
+    dash_gpd_.UpdateEntry(ent);
   }
 
-  dash_gpd_.Read(mmap_->data(), mmap_->size());
-  mmap_->Close();
+  // Add some default settings games/apps usually ask for
+  // Not every setting requested needs to be added though, since now we can
+  // handle non-existing settings fine!
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMER_YAXIS_INVERSION, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_OPTION_CONTROLLER_VIBRATION, 3u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_ZONE, 0u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_REGION, 0u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_CRED, 0u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_HAS_VISION, 0u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_REP, 0.0f));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_OPTION_VOICE_MUTED, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_OPTION_VOICE_THRU_SPEAKERS, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_OPTION_VOICE_VOLUME, 0x64u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_PICTURE_KEY,
+                                     L"gamercard_picture_key"));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_PERSONAL_PICTURE,
+                                     L"gamercard_personal_picture"));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_MOTTO, L"gamercard_motto"));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_TITLES_PLAYED, 1u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_ACHIEVEMENTS_EARNED, 0u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMER_DIFFICULTY, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_CONTROL_SENSITIVITY, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_PREFERRED_COLOR_FIRST, 0xFFFF0000u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_PREFERRED_COLOR_SECOND, 0xFF00FF00u));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMER_ACTION_AUTO_AIM, 1u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_ACTION_AUTO_CENTER, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_ACTION_MOVEMENT_CONTROL, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_RACE_TRANSMISSION, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_RACE_CAMERA_LOCATION, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_RACE_BRAKE_CONTROL, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMER_RACE_ACCELERATOR_CONTROL, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_TITLE_CRED_EARNED, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_TITLE_ACHIEVEMENTS_EARNED, 0u));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_USER_NAME, L"XeniaUserName"));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_GAMERCARD_USER_LOCATION,
+                                     L"XeniaUserLocation"));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_USER_URL, L"XeniaUserUrl"));
+  AddSettingIfNotExist(
+      xdbf::Setting(xdbf::XPROFILE_GAMERCARD_USER_BIO, L"XeniaUserBio"));
 
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_TITLE_SPECIFIC1, {}));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_TITLE_SPECIFIC2, {}));
+  AddSettingIfNotExist(xdbf::Setting(xdbf::XPROFILE_TITLE_SPECIFIC3, {}));
+
+  // Make sure the dash GPD is up-to-date
+  UpdateGpd(kDashboardID, dash_gpd_);
+
+  // Load in any extra game GPDs
   std::vector<xdbf::TitlePlayed> titles;
   dash_gpd_.GetTitles(&titles);
 
