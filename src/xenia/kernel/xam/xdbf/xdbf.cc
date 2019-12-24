@@ -124,7 +124,7 @@ Entry* XdbfFile::GetEntry(uint16_t section, uint64_t id) const {
   return nullptr;
 }
 
-bool XdbfFile::UpdateEntry(Entry entry) {
+bool XdbfFile::UpdateEntry(const Entry& entry) {
   for (size_t i = 0; i < entries_.size(); i++) {
     auto* ent = (Entry*)&entries_[i];
     if (ent->info.section != entry.info.section ||
@@ -367,7 +367,7 @@ uint32_t GpdFile::GetTitles(std::vector<TitlePlayed>* titles) const {
   return title_count;
 }
 
-bool GpdFile::UpdateAchievement(Achievement ach) {
+bool GpdFile::UpdateAchievement(const Achievement& ach) {
   Entry ent;
   ent.info.section = static_cast<uint16_t>(GpdSection::kAchievement);
   ent.info.id = ach.id;
@@ -408,7 +408,7 @@ bool GpdFile::UpdateAchievement(Achievement ach) {
   return UpdateEntry(ent);
 }
 
-bool GpdFile::UpdateTitle(TitlePlayed title) {
+bool GpdFile::UpdateTitle(const TitlePlayed& title) {
   Entry ent;
   ent.info.section = static_cast<uint16_t>(GpdSection::kTitle);
   ent.info.id = title.title_id;
@@ -422,7 +422,7 @@ bool GpdFile::UpdateTitle(TitlePlayed title) {
   ent.data.resize(est_size);
   memset(ent.data.data(), 0, est_size);
 
-  // convert XdbfTitlePlayed to GPD title
+  // convert TitlePlayed to GPD title
   auto* title_data = reinterpret_cast<X_XDBF_GPD_TITLEPLAYED*>(ent.data.data());
   title.WriteGPD(title_data);
 

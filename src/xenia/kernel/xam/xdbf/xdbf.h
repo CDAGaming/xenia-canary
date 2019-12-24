@@ -104,7 +104,7 @@ struct TitlePlayed {
     title_name = ReadNullTermString((const wchar_t*)txt_ptr);
   }
 
-  void WriteGPD(X_XDBF_GPD_TITLEPLAYED* dest) {
+  void WriteGPD(X_XDBF_GPD_TITLEPLAYED* dest) const {
     dest->title_id = title_id;
     dest->achievements_possible = achievements_possible;
     dest->achievements_earned = achievements_earned;
@@ -244,7 +244,7 @@ class XdbfFile {
   Entry* GetEntry(uint16_t section, uint64_t id) const;
 
   // Updates (or adds) an entry
-  bool UpdateEntry(Entry entry);
+  bool UpdateEntry(const Entry& entry);
 
  protected:
   X_XDBF_HEADER header_;
@@ -277,10 +277,10 @@ class GpdFile : public XdbfFile {
   uint32_t GetTitles(std::vector<TitlePlayed>* titles) const;
 
   // Updates (or adds) an achievement
-  bool UpdateAchievement(Achievement ach);
+  bool UpdateAchievement(const Achievement& ach);
 
   // Updates (or adds) a title
-  bool UpdateTitle(TitlePlayed title);
+  bool UpdateTitle(const TitlePlayed& title);
 
   uint32_t GetTitleId() { return title_id_; }
 
