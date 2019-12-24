@@ -172,8 +172,8 @@ std::string SpaFile::GetStringTableEntry(Locale locale,
 
   auto xstr_head =
       reinterpret_cast<const X_XDBF_TABLE_HEADER*>(xstr_table->data.data());
-  assert_true(xstr_head->magic == static_cast<uint32_t>(SpaID::Xstr));
-  assert_true(xstr_head->version == 1);
+  assert_true(xstr_head->header.magic == static_cast<uint32_t>(SpaID::Xstr));
+  assert_true(xstr_head->header.version == 1);
 
   const uint8_t* ptr = xstr_table->data.data() + sizeof(X_XDBF_TABLE_HEADER);
 
@@ -190,8 +190,8 @@ uint32_t SpaFile::GetAchievements(
 
   auto xach_head =
       reinterpret_cast<const X_XDBF_TABLE_HEADER*>(xach_table->data.data());
-  assert_true(xach_head->magic == static_cast<uint32_t>(SpaID::Xach));
-  assert_true(xach_head->version == 1);
+  assert_true(xach_head->header.magic == static_cast<uint32_t>(SpaID::Xach));
+  assert_true(xach_head->header.version == 1);
 
   auto xstr_table = GetEntry(static_cast<uint16_t>(SpaSection::kStringTable),
                              static_cast<uint64_t>(locale));
@@ -201,8 +201,8 @@ uint32_t SpaFile::GetAchievements(
 
   auto xstr_head =
       reinterpret_cast<const X_XDBF_TABLE_HEADER*>(xstr_table->data.data());
-  assert_true(xstr_head->magic == static_cast<uint32_t>(SpaID::Xstr));
-  assert_true(xstr_head->version == 1);
+  assert_true(xstr_head->header.magic == static_cast<uint32_t>(SpaID::Xstr));
+  assert_true(xstr_head->header.version == 1);
 
   const uint8_t* xstr_ptr =
       xstr_table->data.data() + sizeof(X_XDBF_TABLE_HEADER);
@@ -247,7 +247,7 @@ Locale SpaFile::GetDefaultLocale() const {
   }
 
   auto xstc = reinterpret_cast<const X_XDBF_XSTC_DATA*>(block->data.data());
-  assert_true(xstc->magic == static_cast<uint32_t>(SpaID::Xstc));
+  assert_true(xstc->header.magic == static_cast<uint32_t>(SpaID::Xstc));
 
   return static_cast<Locale>(static_cast<uint32_t>(xstc->default_language));
 }
@@ -265,7 +265,7 @@ uint32_t SpaFile::GetTitleId() const {
   }
 
   auto xthd = reinterpret_cast<const X_XDBF_XTHD_DATA*>(block->data.data());
-  assert_true(xthd->magic == static_cast<uint32_t>(SpaID::Xthd));
+  assert_true(xthd->header.magic == static_cast<uint32_t>(SpaID::Xthd));
 
   return xthd->title_id;
 }

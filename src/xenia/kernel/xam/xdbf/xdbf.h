@@ -81,9 +81,9 @@ struct TitlePlayed {
   uint32_t gamerscore_total = 0;
   uint32_t gamerscore_earned = 0;
   uint16_t reserved_achievement_count = 0;
-  uint16_t all_avatar_awards = 0;
-  uint16_t male_avatar_awards = 0;
-  uint16_t female_avatar_awards = 0;
+  X_XDBF_AVATARAWARDS_COUNTER all_avatar_awards = {0, 0};
+  X_XDBF_AVATARAWARDS_COUNTER male_avatar_awards = {0, 0};
+  X_XDBF_AVATARAWARDS_COUNTER female_avatar_awards = {0, 0};
   uint32_t reserved_flags = 0;
   uint64_t last_played = 0;
 

@@ -700,8 +700,10 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
   std::vector<xdbf::TitlePlayed> titles;
   kernel_state()->user_profile()->GetDashboardGpd()->GetTitles(&titles);
 
-  auto e = new XStaticEnumerator(kernel_state(), games_count,
-                                 sizeof(xdbf::X_XDBF_GPD_TITLEPLAYED));
+  // + 128 bytes for the 64-char titlename
+  const uint32_t kEntrySize = sizeof(xdbf::X_XDBF_GPD_TITLEPLAYED) + 128;
+
+  auto e = new XStaticEnumerator(kernel_state(), games_count, kEntrySize);
   e->Initialize();
 
   *handle_ptr = e->handle();
@@ -717,21 +719,7 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
       continue;
 
     auto* details = (xdbf::X_XDBF_GPD_TITLEPLAYED*)e->AppendItem();
-    details->title_id = title.title_id;
-    details->achievements_possible = title.achievements_possible;
-    details->achievements_earned = title.achievements_earned;
-    details->gamerscore_total = title.gamerscore_total;
-    details->gamerscore_earned = title.gamerscore_earned;
-    details->reserved_achievement_count = title.reserved_achievement_count;
-    details->all_avatar_awards = title.all_avatar_awards;
-    details->male_avatar_awards = title.male_avatar_awards;
-    details->female_avatar_awards = title.female_avatar_awards;
-    details->reserved_flags = title.reserved_flags;
-    details->last_played = title.last_played;
-
-    xe::copy_and_swap<wchar_t>((wchar_t*)details->title_name,
-                               title.title_name.c_str(),
-                               title.title_name.size());
+    title.WriteGPD(details);
   }
 
   return X_ERROR_SUCCESS;
