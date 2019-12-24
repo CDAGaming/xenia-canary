@@ -9,19 +9,17 @@
 
 #include <cstring>
 
+#include "xenia/base/cvar.h"
 #include "xenia/base/logging.h"
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/util/shim_utils.h"
 #include "xenia/kernel/xam/xam_private.h"
+#include "xenia/kernel/xam/xdbf/xdbf.h"
 #include "xenia/kernel/xenumerator.h"
 #include "xenia/kernel/xthread.h"
 #include "xenia/xbox.h"
-#include "xenia/kernel/xam/xdbf/xdbf.h"
-#include "xenia/base/cvar.h"
 
-
-DEFINE_bool(signin_state, true,
-            "User signed in", "Kernel");
+DEFINE_bool(signin_state, true, "User signed in", "Kernel");
 
 namespace xe {
 namespace kernel {
@@ -128,7 +126,7 @@ dword_result_t XamUserGetSigninState(dword_t user_index) {
 
   if (user_index == 0 || (user_index & 0xFF) == 0xFF) {
     const auto& user_profile = kernel_state()->user_profile();
-	return ((cvars::signin_state) ? 1 : 0);
+    return ((cvars::signin_state) ? 1 : 0);
   } else {
     return 0;
   }
@@ -157,7 +155,7 @@ X_HRESULT_result_t XamUserGetSigninInfo(dword_t user_index, dword_t flags,
   }
 
   std::memset(info, 0, sizeof(X_USER_SIGNIN_INFO));
- 
+
   const auto& user_profile = kernel_state()->user_profile();
   info->xuid = user_profile->xuid();
   info->signin_state = ((cvars::signin_state) ? 1 : 0);
@@ -710,8 +708,13 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
 
   for (auto title : titles) {
     // For some reason dashboard gpd stores info about itself
-    if (title.title_id == kDashboardID)
-        continue;
+    if (title.title_id == kDashboardID) 
+      continue;
+
+    // TODO: Look for better check to provide information about demo title
+    // or system title
+    if (!title.gamerscore_total || !title.achievements_possible) 
+      continue;
 
     auto* details = (xdbf::X_XDBF_GPD_TITLEPLAYED*)e->AppendItem();
     details->title_id = title.title_id;
@@ -727,18 +730,18 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
     details->last_played = title.last_played;
 
     xe::copy_and_swap<wchar_t>((wchar_t*)details->title_name,
-                                title.title_name.c_str(),
-                                title.title_name.size());
+                               title.title_name.c_str(),
+                               title.title_name.size());
   }
 
   return X_ERROR_SUCCESS;
 }
-DECLARE_XAM_EXPORT1(XamUserCreateTitlesPlayedEnumerator, kUserProfiles, kImplemented);
+DECLARE_XAM_EXPORT1(XamUserCreateTitlesPlayedEnumerator, kUserProfiles,
+                    kImplemented);
 
 dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
                            dword_t offset, lpdword_t output_ptr,
-                           lpdword_t buffer_size_ptr,
-                           dword_t overlapped) {
+                           lpdword_t buffer_size_ptr, dword_t overlapped) {
   uint32_t buffer_size = buffer_size_ptr ? *buffer_size_ptr : 0;
 
   if (!output_ptr) {
@@ -753,7 +756,8 @@ dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
   }
 
   // Section 2 == images
-  Entry* entry = game_spa->GetEntry((uint16_t)SpaSection::kImage, item_id.value());
+  Entry* entry =
+      game_spa->GetEntry((uint16_t)SpaSection::kImage, item_id.value());
 
   if (!buffer_size) {
     buffer_size = entry->info.size;
@@ -769,9 +773,9 @@ dword_result_t XamReadTile(dword_t section_id, dword_t game_id, qword_t item_id,
 }
 DECLARE_XAM_EXPORT1(XamReadTile, kUserProfiles, kSketchy);
 
-dword_result_t XamReadTileEx(dword_t section_id, dword_t game_id, qword_t item_id,
-                           dword_t offset, dword_t unk1,
-                           dword_t unk2, lpdword_t output_ptr) {
+dword_result_t XamReadTileEx(dword_t section_id, dword_t game_id,
+                             qword_t item_id, dword_t offset, dword_t unk1,
+                             dword_t unk2, lpdword_t output_ptr) {
   return XamReadTile(section_id, game_id, item_id, offset, output_ptr, 0, 0);
 }
 DECLARE_XAM_EXPORT1(XamReadTileEx, kUserProfiles, kSketchy);
@@ -787,7 +791,6 @@ DECLARE_XAM_EXPORT1(XamUserIsOnlineEnabled, kUserProfiles, kStub);
 }  // namespace xam
 }  // namespace kernel
 }  // namespace xe
-
 
 void xe::kernel::xam::RegisterUserExports(
     xe::cpu::ExportResolver* export_resolver, KernelState* kernel_state) {}
