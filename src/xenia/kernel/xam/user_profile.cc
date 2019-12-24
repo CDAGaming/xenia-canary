@@ -251,7 +251,12 @@ void UserProfile::LoadProfile() {
 }
 
 xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
+  curr_title_id_ = 0;
+  curr_gpd_ = nullptr;
+
   uint32_t spa_title = spa_data.GetTitleId();
+
+  curr_title_id_ = spa_title;
 
   std::vector<xdbf::Achievement> spa_achievements;
   // TODO: let user choose locale?
@@ -324,12 +329,15 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
     title_info.last_played = Clock::QueryHostSystemTime();
 
     // Copy cheevos from SPA -> GPD
-    xdbf::GpdFile title_gpd(spa_title);
-    for (auto ach : spa_achievements) {
-      title_gpd.UpdateAchievement(ach);
+    auto& title_gpd = dash_gpd_;
+    if (spa_title != kDashboardID) {
+      title_gpd = xdbf::GpdFile(spa_title);
+      for (auto ach : spa_achievements) {
+        title_gpd.UpdateAchievement(ach);
 
-      title_info.achievements_possible++;
-      title_info.gamerscore_total += ach.gamerscore;
+        title_info.achievements_possible++;
+        title_info.gamerscore_total += ach.gamerscore;
+      }
     }
 
     // Try copying achievement images if we can...
@@ -364,14 +372,20 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
     title_gpds_[spa_title] = title_gpd;
 
     // Update dash GPD with title and write updated GPDs
-    dash_gpd_.UpdateTitle(title_info);
+    if (spa_title != kDashboardID) {
+      title_gpds_[spa_title] = title_gpd;
+      dash_gpd_.UpdateTitle(title_info);
+      UpdateGpd(spa_title, title_gpds_[spa_title]);
+    }
 
-    UpdateGpd(spa_title, title_gpd);
     UpdateGpd(kDashboardID, dash_gpd_);
   }
 
-  curr_gpd_ = &title_gpds_[spa_title];
-  curr_title_id_ = spa_title;
+  if (spa_title != kDashboardID) {
+    curr_gpd_ = &title_gpds_[spa_title];
+  } else {
+    curr_gpd_ = &dash_gpd_;
+  }
 
   // Print achievement list to log, ATM there's no other way for users to see
   // achievement status...
@@ -397,7 +411,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
 }
 
 xdbf::GpdFile* UserProfile::GetTitleGpd(uint32_t title_id) {
-  if (title_id == -1) {
+  if (title_id == -1 || title_id == 0) {
     return curr_gpd_;
   }
 
@@ -448,6 +462,48 @@ bool UserProfile::UpdateAllGpds() {
 }
 
 bool UserProfile::UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data) {
+  // Recalculate achievement totals
+  uint32_t num_ach_total = 0;
+  uint32_t num_ach_earned = 0;
+  uint32_t gamerscore_total = 0;
+  uint32_t gamerscore_earned = 0;
+
+  // Update achievement total settings
+  if (title_id != kDashboardID) {
+    std::vector<xdbf::Achievement> gpd_achievements;
+    gpd_data.GetAchievements(&gpd_achievements);
+
+    for (auto ach : gpd_achievements) {
+      num_ach_total++;
+      gamerscore_total += ach.gamerscore;
+      if (ach.IsUnlocked()) {
+        num_ach_earned++;
+        gamerscore_earned += ach.gamerscore;
+      }
+    }
+
+    gpd_data.UpdateSetting(xdbf::Setting(
+        xdbf::XPROFILE_GAMERCARD_TITLE_ACHIEVEMENTS_EARNED, num_ach_earned));
+    gpd_data.UpdateSetting(xdbf::Setting(
+        xdbf::XPROFILE_GAMERCARD_TITLE_CRED_EARNED, gamerscore_earned));
+  } else {
+    // We're writing dash gpd, so recalculate total achievements
+    // earned/gamerscore
+    std::vector<xdbf::TitlePlayed> titles;
+    dash_gpd_.GetTitles(&titles);
+    for (auto title : titles) {
+      num_ach_earned += title.achievements_earned;
+      gamerscore_earned += title.gamerscore_earned;
+    }
+
+    dash_gpd_.UpdateSetting(xdbf::Setting(
+        xdbf::XPROFILE_GAMERCARD_TITLES_PLAYED, (uint32_t)titles.size()));
+    dash_gpd_.UpdateSetting(xdbf::Setting(
+        xdbf::XPROFILE_GAMERCARD_ACHIEVEMENTS_EARNED, num_ach_earned));
+    dash_gpd_.UpdateSetting(
+        xdbf::Setting(xdbf::XPROFILE_GAMERCARD_CRED, gamerscore_earned));
+  }
+
   size_t gpd_length = 0;
   if (!gpd_data.Write(nullptr, &gpd_length)) {
     XELOGE("Failed to get GPD size for title %X!", title_id);
@@ -470,54 +526,35 @@ bool UserProfile::UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data) {
     return false;
   }
 
-  bool ret_val = true;
-
+  // Write out GPD
   if (!gpd_data.Write(mmap_->data(), &gpd_length)) {
     XELOGE("Failed to write GPD data for %X!", title_id);
-    ret_val = false;
-  } else {
-    // Check if we need to update dashboard data...
-    if (title_id != kDashboardID) {
-      xdbf::TitlePlayed title_info;
-      if (dash_gpd_.GetTitle(title_id, &title_info)) {
-        std::vector<xdbf::Achievement> gpd_achievements;
-        gpd_data.GetAchievements(&gpd_achievements);
+    mmap_->Close(gpd_length);
+    return false;
+  }
 
-        uint32_t num_ach_total = 0;
-        uint32_t num_ach_earned = 0;
-        uint32_t gamerscore_total = 0;
-        uint32_t gamerscore_earned = 0;
-        for (auto ach : gpd_achievements) {
-          num_ach_total++;
-          gamerscore_total += ach.gamerscore;
-          if (ach.IsUnlocked()) {
-            num_ach_earned++;
-            gamerscore_earned += ach.gamerscore;
-          }
-        }
+  // Check if we need to update dashboard data...
+  if (title_id != kDashboardID) {
+    xdbf::TitlePlayed title_info;
+    if (dash_gpd_.GetTitle(title_id, &title_info)) {
+      // Only update dash GPD if something has changed
+      if (num_ach_total != title_info.achievements_possible ||
+          num_ach_earned != title_info.achievements_earned ||
+          gamerscore_total != title_info.gamerscore_total ||
+          gamerscore_earned != title_info.gamerscore_earned) {
+        title_info.achievements_possible = num_ach_total;
+        title_info.achievements_earned = num_ach_earned;
+        title_info.gamerscore_total = gamerscore_total;
+        title_info.gamerscore_earned = gamerscore_earned;
 
-        // Only update dash GPD if something has changed
-        if (num_ach_total != title_info.achievements_possible ||
-            num_ach_earned != title_info.achievements_earned ||
-            gamerscore_total != title_info.gamerscore_total ||
-            gamerscore_earned != title_info.gamerscore_earned) {
-          title_info.achievements_possible = num_ach_total;
-          title_info.achievements_earned = num_ach_earned;
-          title_info.gamerscore_total = gamerscore_total;
-          title_info.gamerscore_earned = gamerscore_earned;
-
-          dash_gpd_.UpdateTitle(title_info);
-          UpdateGpd(kDashboardID, dash_gpd_);
-
-          // TODO: update gamerscore/achievements earned/titles played settings
-          // in dashboard GPD
-        }
+        dash_gpd_.UpdateTitle(title_info);
+        UpdateGpd(kDashboardID, dash_gpd_);
       }
     }
   }
 
   mmap_->Close(gpd_length);
-  return ret_val;
+  return true;
 }
 
 bool UserProfile::AddSettingIfNotExist(xdbf::Setting& setting) {
