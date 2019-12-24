@@ -46,7 +46,7 @@ enum class GpdSection : uint16_t {
   kSetting = 0x3,
   kTitle = 0x4,
   kString = 0x5,
-  kSecurity = 0x6
+  kProtectedAchievement = 0x6,  // GFWL only
 };
 
 // Found by dumping the kSectionStringTable sections of various games:
@@ -114,6 +114,8 @@ struct TitlePlayed {
     dest->all_avatar_awards = all_avatar_awards;
     dest->male_avatar_awards = male_avatar_awards;
     dest->female_avatar_awards = female_avatar_awards;
+    // todo: reserved_flags may need to be updated with # of newly unlocked (not
+    // synced to live) achievements - # might be obfuscated in some way
     dest->reserved_flags = reserved_flags;
     dest->last_played = last_played;
 
@@ -133,11 +135,22 @@ enum class AchievementType : uint32_t {
   kOther = 7,
 };
 
+enum class AchievementPlatform : uint32_t {
+  kX360 = 1,
+  kPC = 2,
+  kMobile = 3,
+  kWebGames = 4,
+};
+
 enum class AchievementFlags : uint32_t {
   kTypeMask = 0x7,
   kShowUnachieved = 0x8,
   kAchievedOnline = 0x10000,
-  kAchieved = 0x20000
+  kAchieved = 0x20000,
+  kNotAchievable = 0x40000,
+  kWasNotAchievable = 0x80000,
+  kPlatformMask = 0x700000,
+  kColorizable = 0x1000000,  // avatar awards only?
 };
 
 struct Achievement {
@@ -155,6 +168,16 @@ struct Achievement {
         flags & static_cast<uint32_t>(AchievementFlags::kTypeMask));
   }
 
+  AchievementPlatform GetPlatform() {
+    return static_cast<AchievementPlatform>(
+        flags & static_cast<uint32_t>(AchievementFlags::kPlatformMask));
+  }
+
+  bool IsUnlockable() {
+    return !(flags & static_cast<uint32_t>(AchievementFlags::kNotAchievable)) ||
+           (flags & static_cast<uint32_t>(AchievementFlags::kWasNotAchievable));
+  }
+
   bool IsUnlocked() {
     return flags & static_cast<uint32_t>(AchievementFlags::kAchieved);
   }
@@ -164,6 +187,10 @@ struct Achievement {
   }
 
   void Unlock(bool online = false) {
+    if (!IsUnlockable()) {
+      return;
+    }
+
     flags |= static_cast<uint32_t>(AchievementFlags::kAchieved);
     if (online) {
       flags |= static_cast<uint32_t>(AchievementFlags::kAchievedOnline);
