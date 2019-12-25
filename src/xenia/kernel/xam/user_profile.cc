@@ -30,6 +30,10 @@ std::string X_XAMACCOUNTINFO::GetGamertagString() const {
   return xe::to_string(std::wstring(gamertag));
 }
 
+std::wstring UserProfile::directory() const {
+  return xe::to_wstring(cvars::profile_directory);
+}
+
 bool UserProfile::DecryptAccountFile(const uint8_t* data,
                                      X_XAMACCOUNTINFO* output, bool devkit) {
   const uint8_t* key = util::GetXeKey(0x19, devkit);

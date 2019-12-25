@@ -25,6 +25,34 @@ namespace xam {
 
 constexpr uint32_t kDashboardID = 0xFFFE07D1;
 
+// https://github.com/jogolden/testdev/blob/master/xkelib/xam/_xamext.h#L68
+enum class XTileType {
+  kAchievement,
+  kGameIcon,
+  kGamerTile,
+  kGamerTileSmall,
+  kLocalGamerTile,
+  kLocalGamerTileSmall,
+  kBkgnd,
+  kAwardedGamerTile,
+  kAwardedGamerTileSmall,
+  kGamerTileByImageId,
+  kPersonalGamerTile,
+  kPersonalGamerTileSmall,
+  kGamerTileByKey,
+  kAvatarGamerTile,
+  kAvatarGamerTileSmall,
+  kAvatarFullBody
+};
+
+// TODO: find filenames of other tile types that are stored in profile
+static const std::map<XTileType, wchar_t*> kTileFileNames = {
+    {XTileType::kPersonalGamerTile, L"tile_64.png"},
+    {XTileType::kPersonalGamerTileSmall, L"tile_32.png"},
+    {XTileType::kAvatarGamerTile, L"avtr_64.png"},
+    {XTileType::kAvatarGamerTileSmall, L"avtr_32.png"},
+};
+
 // from https://github.com/xemio/testdev/blob/master/xkelib/xam/_xamext.h
 #pragma pack(push, 4)
 struct X_XAMACCOUNTINFO {
@@ -142,6 +170,7 @@ class UserProfile {
 
   uint64_t xuid() const { return account_.xuid_online; }
   std::string name() const { return account_.GetGamertagString(); }
+  std::wstring directory() const;
   // uint32_t signin_state() const { return 1; }
 
   xdbf::GpdFile* SetTitleSpaData(const xdbf::SpaFile& spa_data);

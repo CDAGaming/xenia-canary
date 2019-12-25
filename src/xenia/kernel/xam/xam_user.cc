@@ -759,79 +759,91 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
 DECLARE_XAM_EXPORT1(XamUserCreateTitlesPlayedEnumerator, kUserProfiles,
                     kImplemented);
 
-// https://github.com/jogolden/testdev/blob/master/xkelib/xam/_xamext.h#L68
-enum class XTileType {
-  kAchievement,
-  kGameIcon,
-  kGamerTile,
-  kGamerTileSmall,
-  kLocalGamerTile,
-  kLocalGamerTileSmall,
-  kBkgnd,
-  kAwardedGamerTile,
-  kAwardedGamerTileSmall,
-  kGamerTileByImageId,
-  kPersonalGamerTile,
-  kPersonalGamerTileSmall,
-  kGamerTileByKey,
-  kAvatarGamerTile,
-  kAvatarGamerTileSmall,
-  kAvatarFullBody
-};
-
 dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
                            dword_t offset, lpdword_t output_ptr,
                            lpdword_t buffer_size_ptr, dword_t overlapped_ptr) {
-  if (!output_ptr || !buffer_size_ptr) {
-    return X_ERROR_FILE_NOT_FOUND;
-  }
+  // Wrap function in a lambda func so we can use return to exit out when
+  // needed, but still always be able to set the xoverlapped value
+  // this way we don't need a bunch of if/else nesting to accomplish the same
+  auto main_fn = [tile_type, game_id, item_id, offset, output_ptr,
+                  buffer_size_ptr]() {
+    uint64_t image_id = item_id;
 
-  uint64_t image_id = item_id;
+    uint8_t* data = nullptr;
+    size_t data_len = 0;
+    std::unique_ptr<MappedMemory> mmap;
 
-  auto type = (XTileType)tile_type.value();
-  if (type == XTileType::kPersonalGamerTile) {
-    // TODO: read pic from profile dir, it's stored as a .png file
-    // image_id = XUID of profile to retrieve from
-    image_id = (uint64_t)SpaID::Title;  // return dash image for now
-  }
+    if (!output_ptr || !buffer_size_ptr) {
+      return X_ERROR_FILE_NOT_FOUND;
+    }
 
-  auto gpd = kernel_state()->user_profile()->GetTitleGpd(game_id.value());
+    auto type = (XTileType)tile_type.value();
+    if (kTileFileNames.count(type)) {
+      // image_id = XUID of profile to retrieve from
 
-  if (!gpd) {
-    return X_ERROR_FILE_NOT_FOUND;
-  }
+      auto file_path = kernel_state()->user_profile()->directory();
+      file_path += kTileFileNames.at(type);
 
-  auto entry =
-      gpd->GetEntry(static_cast<uint16_t>(xdbf::GpdSection::kImage), image_id);
+      mmap = MappedMemory::Open(file_path, MappedMemory::Mode::kRead);
+      if (!mmap) {
+        return X_ERROR_FILE_NOT_FOUND;
+      }
+      data = mmap->data();
+      data_len = mmap->size();
+    } else {
+      auto gpd = kernel_state()->user_profile()->GetTitleGpd(game_id.value());
 
-  if (!entry) {
-    return X_ERROR_FILE_NOT_FOUND;
-  }
+      if (!gpd) {
+        return X_ERROR_FILE_NOT_FOUND;
+      }
 
-  auto passed_size = *buffer_size_ptr;
-  *buffer_size_ptr = (uint32_t)entry->data.size();
+      auto entry = gpd->GetEntry(
+          static_cast<uint16_t>(xdbf::GpdSection::kImage), image_id);
 
-  uint32_t ret_val = X_ERROR_INVALID_PARAMETER;
+      if (!entry) {
+        return X_ERROR_FILE_NOT_FOUND;
+      }
 
-  if (passed_size >= *buffer_size_ptr) {
-    memcpy_s(output_ptr, *buffer_size_ptr, entry->data.data(),
-             entry->data.size());
-    ret_val = X_ERROR_SUCCESS;
-  }
+      data = entry->data.data();
+      data_len = entry->data.size();
+    }
+
+    if (!data || !data_len) {
+      return X_ERROR_FILE_NOT_FOUND;
+    }
+
+    auto passed_size = *buffer_size_ptr;
+    *buffer_size_ptr = (uint32_t)data_len;
+
+    auto ret_val = X_ERROR_INVALID_PARAMETER;
+
+    if (passed_size >= *buffer_size_ptr) {
+      memcpy_s(output_ptr, *buffer_size_ptr, data, data_len);
+      ret_val = X_ERROR_SUCCESS;
+    }
+
+    if (mmap) {
+      mmap->Close();
+    }
+
+    return ret_val;
+  };
+
+  auto retval = main_fn();
 
   if (overlapped_ptr) {
-    kernel_state()->CompleteOverlappedImmediate(overlapped_ptr, ret_val);
+    kernel_state()->CompleteOverlappedImmediate(overlapped_ptr, retval);
     return X_ERROR_IO_PENDING;
   }
-  return ret_val;
+  return retval;
 }
 DECLARE_XAM_EXPORT1(XamReadTile, kUserProfiles, kSketchy);
 
-dword_result_t XamReadTileEx(dword_t section_id, dword_t game_id,
+dword_result_t XamReadTileEx(dword_t tile_type, dword_t game_id,
                              qword_t item_id, dword_t offset, dword_t unk1,
                              dword_t unk2, lpdword_t output_ptr,
                              lpdword_t buffer_size_ptr) {
-  return XamReadTile(section_id, game_id, item_id, offset, output_ptr,
+  return XamReadTile(tile_type, game_id, item_id, offset, output_ptr,
                      buffer_size_ptr, 0);
 }
 DECLARE_XAM_EXPORT1(XamReadTileEx, kUserProfiles, kSketchy);
