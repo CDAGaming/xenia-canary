@@ -348,7 +348,8 @@ DECLARE_XAM_EXPORT1(XamFree, kMemory, kImplemented);
 dword_result_t XamEnumerate(dword_t handle, dword_t flags, lpvoid_t buffer,
                             dword_t buffer_length, lpdword_t items_returned,
                             pointer_t<XAM_OVERLAPPED> overlapped) {
-  assert_true(flags == 0);
+  assert_true(flags == 0 ||
+              flags == 2);  // 2 seems to use more direct XAM code?
 
   auto e = kernel_state()->object_table()->LookupObject<XEnumerator>(handle);
   if (!e) {

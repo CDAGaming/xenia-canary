@@ -462,6 +462,8 @@ dword_result_t XamUserWriteProfileSettings(
     gpd->UpdateSetting(setting);
   }
 
+  user_profile->UpdateAllGpds();
+
   if (overlapped_ptr) {
     kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                 X_ERROR_SUCCESS);
@@ -718,11 +720,15 @@ DECLARE_XAM_EXPORT1(XamSessionRefObjByHandle, kUserProfiles, kStub);
 dword_result_t XamUserCreateTitlesPlayedEnumerator(
     dword_t user_index, dword_t xuid, dword_t flags, dword_t offset,
     dword_t games_count, lpdword_t buffer_size_ptr, lpdword_t handle_ptr) {
-  std::vector<xdbf::TitlePlayed> titles;
-  kernel_state()->user_profile()->GetDashboardGpd()->GetTitles(&titles);
-
   // + 128 bytes for the 64-char titlename
   const uint32_t kEntrySize = sizeof(xdbf::X_XDBF_GPD_TITLEPLAYED) + 128;
+
+  if (buffer_size_ptr) {
+    *buffer_size_ptr = kEntrySize * games_count;
+  }
+
+  std::vector<xdbf::TitlePlayed> titles;
+  kernel_state()->user_profile()->GetDashboardGpd()->GetTitles(&titles);
 
   auto e = new XStaticEnumerator(kernel_state(), games_count, kEntrySize);
   e->Initialize();
@@ -730,6 +736,10 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
   *handle_ptr = e->handle();
 
   for (auto title : titles) {
+    if (e->item_count() >= games_count) {
+      break;
+    }
+
     // For some reason dashboard gpd stores info about itself
     if (title.title_id == kDashboardID) continue;
 
@@ -740,6 +750,9 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
     auto* details = (xdbf::X_XDBF_GPD_TITLEPLAYED*)e->AppendItem();
     title.WriteGPD(details);
   }
+
+  XELOGD("XamUserCreateTitlesPlayedEnumerator: added %d items to enumerator",
+         e->item_count());
 
   return X_ERROR_SUCCESS;
 }
