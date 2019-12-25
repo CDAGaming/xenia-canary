@@ -570,23 +570,6 @@ bool UserProfile::AddSettingIfNotExist(xdbf::Setting& setting) {
 
 xdbf::GpdFile* UserProfile::GetDashboardGpd() { return &dash_gpd_; }
 
-xdbf::SpaFile* UserProfile::GetTitleSpa(uint32_t title_id) {
-  std::wstring file_location = xe::to_wstring(cvars::profile_directory) +
-                               format_string(L"%X", title_id) + L".gpd";
-
-  auto mmap_ = MappedMemory::Open(file_location, MappedMemory::Mode::kRead);
-
-  if (!mmap_) {
-    return (nullptr);
-  }
-
-  xdbf::SpaFile* game_entry = new xdbf::SpaFile();
-  game_entry->Read(mmap_->data(), mmap_->size());
-  mmap_->Close();
-
-  return (game_entry);
-}
-
 }  // namespace xam
 }  // namespace kernel
 }  // namespace xe
