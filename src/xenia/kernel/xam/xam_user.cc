@@ -310,9 +310,9 @@ dword_result_t XamUserReadProfileSettings(
 
     bool exists = gpd && gpd->GetSetting(setting_id, &setting);
 
-    // TODO: fix binary & unicode settings crashing dash.xex!
-    if (setting.value.type == xdbf::X_XUSER_DATA_TYPE::kBinary ||
-        setting.value.type == xdbf::X_XUSER_DATA_TYPE::kUnicode) {
+    // TODO: fix this setting causing dash.xex to crash
+    // (probably makes it call into avatar code)
+    if (setting.id == xdbf::XPROFILE_GAMERCARD_AVATAR_INFO_1) {
       exists = false;
     }
 
