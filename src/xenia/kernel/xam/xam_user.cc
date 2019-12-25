@@ -848,12 +848,24 @@ dword_result_t XamReadTileEx(dword_t tile_type, dword_t game_id,
 }
 DECLARE_XAM_EXPORT1(XamReadTileEx, kUserProfiles, kSketchy);
 
-dword_result_t XamUserIsOnlineEnabled() {
+dword_result_t XamUserIsOnlineEnabled(dword_t user_index) {
   // 0 - Offline
   // 1 - Online
   return 1;
 }
 DECLARE_XAM_EXPORT1(XamUserIsOnlineEnabled, kUserProfiles, kStub);
+
+dword_result_t XamUserGetIndexFromXUID(qword_t xuid, dword_t r4,
+                                       lpdword_t user_index) {
+  // TODO: support more than 1 user_index!
+  if (xuid == kernel_state()->user_profile()->xuid()) {
+    *user_index = 0;
+    return X_E_SUCCESS;
+  }
+
+  return X_E_NO_SUCH_USER;
+}
+DECLARE_XAM_EXPORT1(XamUserGetIndexFromXUID, kUserProfiles, kStub);
 
 }  // namespace xdbf
 }  // namespace xam
