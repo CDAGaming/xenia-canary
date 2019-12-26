@@ -359,7 +359,7 @@ class SpaFile : public XdbfFile {
   Entry* GetIcon() const;
   Locale GetDefaultLocale() const;
   std::string GetTitleName() const;
-  uint32_t GetTitleId() const;
+  bool GetTitleData(X_XDBF_XTHD_DATA* title_data) const;
 };
 
 class GpdFile : public XdbfFile {

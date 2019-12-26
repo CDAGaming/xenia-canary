@@ -62,13 +62,19 @@ struct X_XDBF_XSTC_DATA {
 static_assert_size(X_XDBF_XSTC_DATA, 16);
 
 struct X_XDBF_XTHD_DATA {
+  enum class TitleType : uint32_t {
+    kSystem = 0,
+    kFull = 1,
+    kDemo = 2,
+    kDownload = 3,
+  };
   enum class Flags {
     kAlwaysIncludeInProfile = 1,
     kNeverIncludeInProfile = 2,
   };
   X_XDBF_SECTION_HEADER header;
   xe::be<uint32_t> title_id;
-  xe::be<uint32_t> title_type;
+  xe::be<TitleType> title_type;
   xe::be<uint16_t> title_version_major;
   xe::be<uint16_t> title_version_minor;
   xe::be<uint16_t> title_version_build;

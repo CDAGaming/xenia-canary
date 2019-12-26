@@ -258,31 +258,46 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
   curr_title_id_ = 0;
   curr_gpd_ = nullptr;
 
-  uint32_t spa_title = spa_data.GetTitleId();
+  xdbf::X_XDBF_XTHD_DATA title_data;
+  spa_data.GetTitleData(&title_data);
 
-  curr_title_id_ = spa_title;
+  curr_title_id_ = title_data.title_id;
 
   std::vector<xdbf::Achievement> spa_achievements;
   // TODO: let user choose locale?
   spa_data.GetAchievements(spa_data.GetDefaultLocale(), &spa_achievements);
 
-  xdbf::TitlePlayed title_info;
+  bool title_included =
+      title_data.title_type == xdbf::X_XDBF_XTHD_DATA::TitleType::kFull ||
+      title_data.title_type == xdbf::X_XDBF_XTHD_DATA::TitleType::kDownload;
 
-  auto gpd = title_gpds_.find(spa_title);
+  if (title_data.flags &
+      (uint32_t)xdbf::X_XDBF_XTHD_DATA::Flags::kAlwaysIncludeInProfile) {
+    title_included = true;
+  }
+
+  if (title_data.flags &
+      (uint32_t)xdbf::X_XDBF_XTHD_DATA::Flags::kNeverIncludeInProfile) {
+    title_included = false;
+  }
+  // TODO: set title_included if 'owned' (license_mask check?)
+
+  xdbf::TitlePlayed title_info;
+  auto gpd = title_gpds_.find(title_data.title_id);
   if (gpd != title_gpds_.end()) {
     auto& title_gpd = (*gpd).second;
 
-    XELOGI("Loaded existing GPD for title %X", spa_title);
+    XELOGI("Loaded existing GPD for title %X", title_data.title_id);
 
     bool always_update_title = false;
-    if (!dash_gpd_.GetTitle(spa_title, &title_info)) {
+    if (!dash_gpd_.GetTitle(title_data.title_id, &title_info)) {
       assert_always();
       XELOGE(
           "GPD exists but is missing XbdfTitlePlayed entry? (this shouldn't be "
           "happening!)");
       // Try to work around it...
       title_info.title_name = xe::to_wstring(spa_data.GetTitleName());
-      title_info.title_id = spa_title;
+      title_info.title_id = title_data.title_id;
       title_info.achievements_possible = 0;
       title_info.achievements_earned = 0;
       title_info.gamerscore_total = 0;
@@ -317,25 +332,27 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
     }
 
     // Update dash with new title_info
-    dash_gpd_.UpdateTitle(title_info);
+    if (title_included) {
+      dash_gpd_.UpdateTitle(title_info);
+    }
 
     // Only write game GPD if achievements were updated
     if (ach_updated) {
-      UpdateGpd(spa_title, title_gpd);
+      UpdateGpd(title_data.title_id, title_gpd);
     }
     UpdateGpd(kDashboardID, dash_gpd_);
   } else {
     // GPD not found... have to create it!
-    XELOGI("Creating new GPD for title %X", spa_title);
+    XELOGI("Creating new GPD for title %X", title_data.title_id);
 
     title_info.title_name = xe::to_wstring(spa_data.GetTitleName());
-    title_info.title_id = spa_title;
+    title_info.title_id = title_data.title_id;
     title_info.last_played = Clock::QueryHostSystemTime();
 
     // Copy cheevos from SPA -> GPD
     auto& title_gpd = dash_gpd_;
-    if (spa_title != kDashboardID) {
-      title_gpd = xdbf::GpdFile(spa_title);
+    if (title_data.title_id != kDashboardID) {
+      title_gpd = xdbf::GpdFile(title_data.title_id);
       for (auto ach : spa_achievements) {
         title_gpd.UpdateAchievement(ach);
 
@@ -373,20 +390,22 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
       title_gpd.UpdateEntry(title_name_ent);
     }
 
-    title_gpds_[spa_title] = title_gpd;
+    title_gpds_[title_data.title_id] = title_gpd;
 
     // Update dash GPD with title and write updated GPDs
-    if (spa_title != kDashboardID) {
-      title_gpds_[spa_title] = title_gpd;
-      dash_gpd_.UpdateTitle(title_info);
-      UpdateGpd(spa_title, title_gpds_[spa_title]);
+    if (title_data.title_id != kDashboardID) {
+      title_gpds_[title_data.title_id] = title_gpd;
+      if (title_included) {
+        dash_gpd_.UpdateTitle(title_info);
+      }
+      UpdateGpd(title_data.title_id, title_gpds_[title_data.title_id]);
     }
 
     UpdateGpd(kDashboardID, dash_gpd_);
   }
 
-  if (spa_title != kDashboardID) {
-    curr_gpd_ = &title_gpds_[spa_title];
+  if (title_data.title_id != kDashboardID) {
+    curr_gpd_ = &title_gpds_[title_data.title_id];
   } else {
     curr_gpd_ = &dash_gpd_;
   }

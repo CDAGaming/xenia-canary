@@ -258,17 +258,20 @@ std::string SpaFile::GetTitleName() const {
                              static_cast<uint16_t>(SpaID::Title));
 }
 
-uint32_t SpaFile::GetTitleId() const {
+bool SpaFile::GetTitleData(X_XDBF_XTHD_DATA* title_data) const {
   auto block = GetEntry(static_cast<uint16_t>(SpaSection::kMetadata),
                         static_cast<uint64_t>(SpaID::Xthd));
   if (!block) {
-    return -1;
+    return false;
   }
 
   auto xthd = reinterpret_cast<const X_XDBF_XTHD_DATA*>(block->data.data());
   assert_true(xthd->header.magic == static_cast<uint32_t>(SpaID::Xthd));
 
-  return xthd->title_id;
+  if (title_data) {
+    *title_data = *xthd;
+  }
+  return true;
 }
 
 bool GpdFile::GetAchievement(uint16_t id, Achievement* dest) {
