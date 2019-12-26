@@ -136,10 +136,10 @@ enum class AchievementType : uint32_t {
 };
 
 enum class AchievementPlatform : uint32_t {
-  kX360 = 1,
-  kPC = 2,
-  kMobile = 3,
-  kWebGames = 4,
+  kX360 = 0x100000,
+  kPC = 0x200000,
+  kMobile = 0x300000,
+  kWebGames = 0x400000,
 };
 
 enum class AchievementFlags : uint32_t {
