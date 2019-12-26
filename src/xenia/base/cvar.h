@@ -240,8 +240,8 @@ T* define_cmdvar(const char* name, T* default_value, const char* description) {
 #define DEFINE_int32(name, default_value, description, category) \
   DEFINE_CVar(name, default_value, description, category, false, int32_t)
 
-#define DEFINE_uint64(name, default_value, description, category) \
-  DEFINE_CVar(name, default_value, description, category, false, uint64_t)
+#define DEFINE_int64(name, default_value, description, category) \
+  DEFINE_CVar(name, default_value, description, category, false, int64_t)
 
 #define DEFINE_double(name, default_value, description, category) \
   DEFINE_CVar(name, default_value, description, category, false, double)
@@ -283,7 +283,7 @@ T* define_cmdvar(const char* name, T* default_value, const char* description) {
 
 #define DECLARE_int32(name) DECLARE_CVar(name, int32_t)
 
-#define DECLARE_uint64(name) DECLARE_CVar(name, uint64_t)
+#define DECLARE_int64(name) DECLARE_CVar(name, int64_t)
 
 #define DECLARE_CVar(name, type) \
   namespace cvars {              \

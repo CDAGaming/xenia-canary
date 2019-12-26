@@ -39,10 +39,10 @@ DEFINE_bool(validate_hir, false,
             "Perform validation checks on the HIR during compilation.", "CPU");
 
 // Breakpoints:
-DEFINE_uint64(break_on_instruction, 0,
-              "int3 before the given guest address is executed.", "CPU");
+DEFINE_int64(break_on_instruction, 0,
+             "int3 before the given guest address is executed.", "CPU");
 DEFINE_int32(break_condition_gpr, -1, "GPR compared to", "CPU");
-DEFINE_uint64(break_condition_value, 0, "value compared against", "CPU");
+DEFINE_int64(break_condition_value, 0, "value compared against", "CPU");
 DEFINE_string(break_condition_op, "eq", "comparison operator", "CPU");
 DEFINE_bool(break_condition_truncate, true, "truncate value to 32-bits", "CPU");
 
