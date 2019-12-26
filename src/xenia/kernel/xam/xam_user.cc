@@ -786,7 +786,7 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
     if (kTileFileNames.count(type)) {
       // image_id = XUID of profile to retrieve from
 
-      auto file_path = kernel_state()->user_profile()->directory();
+      auto file_path = kernel_state()->user_profile()->path();
       file_path += kTileFileNames.at(type);
 
       mmap = MappedMemory::Open(file_path, MappedMemory::Mode::kRead);

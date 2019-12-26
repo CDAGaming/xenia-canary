@@ -777,5 +777,83 @@ bool StfsContainerDevice::ResolveFromFolder(const std::wstring& path) {
   return true;
 }
 
+uint32_t StfsContainerDevice::ExtractToFolder(const std::wstring& base_path) {
+  XELOGD("Unpacking to %S", base_path.c_str());
+
+  // Create path if it doesn't exist
+  if (!filesystem::PathExists(base_path)) {
+    filesystem::CreateFolder(base_path);
+  }
+
+  // Run through all the files, breadth-first style.
+  std::queue<vfs::Entry*> queue;
+  auto root = ResolvePath("/");
+  queue.push(root);
+
+  // Allocate a buffer when needed.
+  size_t buffer_size = 0;
+  uint8_t* buffer = nullptr;
+  uint32_t extracted = 0;
+
+  while (!queue.empty()) {
+    auto entry = queue.front();
+    queue.pop();
+    for (auto& entry : entry->children()) {
+      queue.push(entry.get());
+    }
+
+    XELOGD(" %s", entry->path().c_str());
+    auto dest_name = xe::join_paths(base_path, xe::to_wstring(entry->path()));
+    if (entry->attributes() & kFileAttributeDirectory) {
+      xe::filesystem::CreateFolder(dest_name + L"\\");
+      continue;
+    }
+
+    vfs::File* in_file = nullptr;
+    if (entry->Open(FileAccess::kFileReadData, &in_file) != X_STATUS_SUCCESS) {
+      continue;
+    }
+
+    auto file = xe::filesystem::OpenFile(dest_name, "wb");
+    if (!file) {
+      in_file->Destroy();
+      continue;
+    }
+
+    if (entry->can_map()) {
+      auto map = entry->OpenMapped(xe::MappedMemory::Mode::kRead);
+      fwrite(map->data(), map->size(), 1, file);
+      map->Close();
+    } else {
+      // Can't map the file into memory. Read it into a temporary buffer.
+      if (!buffer || entry->size() > buffer_size) {
+        // Resize the buffer.
+        if (buffer) {
+          delete[] buffer;
+        }
+
+        // Allocate a buffer rounded up to the nearest 512MB.
+        buffer_size = xe::round_up(entry->size(), 512 * 1024 * 1024);
+        buffer = new uint8_t[buffer_size];
+      }
+
+      size_t bytes_read = 0;
+      in_file->ReadSync(buffer, entry->size(), 0, &bytes_read);
+      fwrite(buffer, bytes_read, 1, file);
+    }
+
+    extracted++;
+
+    fclose(file);
+    in_file->Destroy();
+  }
+
+  if (buffer) {
+    delete[] buffer;
+  }
+
+  return extracted;
+}
+
 }  // namespace vfs
 }  // namespace xe

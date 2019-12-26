@@ -185,6 +185,8 @@ class StfsContainerDevice : public Device {
 
   StfsHeader& header() { return header_; }
 
+  uint32_t ExtractToFolder(const std::wstring& dest_path);
+
  private:
   enum class Error {
     kSuccess = 0,

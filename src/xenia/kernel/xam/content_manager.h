@@ -65,6 +65,8 @@ class ContentManager {
                                          uint32_t content_type);
 
   ContentPackage* ResolvePackage(const XCONTENT_DATA& data);
+  std::wstring ResolvePackageRoot(uint32_t content_type,
+                                  uint32_t title_id = -1);
 
   bool ContentExists(const XCONTENT_DATA& data);
   X_RESULT CreateContent(std::string root_name, const XCONTENT_DATA& data);
@@ -82,7 +84,6 @@ class ContentManager {
  private:
   uint32_t title_id();
 
-  std::wstring ResolvePackageRoot(uint32_t content_type);
   std::wstring ResolvePackagePath(const XCONTENT_DATA& data);
 
   KernelState* kernel_state_;

@@ -20,8 +20,11 @@
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/util/crypto_utils.h"
 #include "xenia/kernel/util/shim_utils.h"
+#include "xenia/vfs/devices/host_path_device.h"
 
 DECLARE_int32(license_mask);
+
+DEFINE_int64(profile_xuid, -1, "XUID of the profile to load in (E0...)", "XAM");
 
 namespace xe {
 namespace kernel {
@@ -31,9 +34,18 @@ std::string X_XAMACCOUNTINFO::GetGamertagString() const {
   return xe::to_string(std::wstring(gamertag));
 }
 
-std::wstring UserProfile::directory() const {
-  return xe::to_absolute_path(kernel_state_->emulator()->content_root() +
-                              L"\\profile\\");
+std::wstring UserProfile::path() const {
+  if (!profile_path_.empty()) {
+    return profile_path_;
+  }
+
+  return base_path_;
+}
+
+std::wstring UserProfile::path(uint64_t xuid) const {
+  wchar_t path[4096];
+  swprintf_s(path, L"%s%llX", base_path_.c_str(), xuid);
+  return path;
 }
 
 bool UserProfile::DecryptAccountFile(const uint8_t* data,
@@ -108,18 +120,75 @@ void UserProfile::EncryptAccountFile(const X_XAMACCOUNTINFO* input,
 
 UserProfile::UserProfile(KernelState* kernel_state)
     : kernel_state_(kernel_state), dash_gpd_(kDashboardID) {
-  account_.xuid_online = 0xE000BABEBABEBABE;
+  base_path_ =
+      xe::to_absolute_path(kernel_state_->content_manager()->ResolvePackageRoot(
+          0x10000, 0xFFFE07D1));
+
+  account_.xuid_online = cvars::profile_xuid;
   wcscpy(account_.gamertag, L"XeniaUser");
 
   // Try loading profile GPD files...
   LoadProfile();
 }
 
-void UserProfile::LoadProfile() {
+std::wstring UserProfile::MountProfile(const std::wstring& path) {
+  auto package = path;
+  auto package_dir = package + L".dir\\";
+  if (filesystem::PathExists(package_dir)) {
+    return package_dir;
+  }
+
+  filesystem::FileInfo info;
+  // Get info for the original path too, in case we changed to the .dir above
+  if (!filesystem::GetInfo(package, &info)) {
+    return L"";
+  }
+  auto file_system = kernel_state_->file_system();
+
+  auto file_name = xe::to_string(info.name);
+  auto mount_path = "\\Device\\Profile_" + file_name;
+
+  // If package still points to a file, open it as STFS and extract
+  if (info.type == filesystem::FileInfo::Type::kFile) {
+    XELOGI("MountProfile: extracting STFS profile %S", package.c_str());
+
+    // Register the container in the virtual filesystem.
+    auto device =
+        std::make_unique<vfs::StfsContainerDevice>(mount_path, package);
+    if (!device->Initialize()) {
+      XELOGE(
+          "MountProfile: Unable to mount %S as STFS; file not found or "
+          "corrupt.",
+          package.c_str());
+      return L"";
+    }
+    device->ExtractToFolder(package_dir);
+    return package_dir;
+  }
+
+  return package + L"\\";
+}
+
+bool UserProfile::LoadProfile() {
+  auto profile_path = path(cvars::profile_xuid);
+  if (cvars::profile_xuid == -1) {
+    auto files = filesystem::ListFiles(path());
+    // TODO: allow choosing by index maybe?
+    for (auto f : files) {
+      profile_path = f.path + f.name;
+      break;  // use first found dir/package as profile
+    }
+  }
+
+  profile_path_ = MountProfile(profile_path);
+  if (profile_path_.empty()) {
+    return false;
+  }
+
   auto mmap_ =
-      MappedMemory::Open(directory() + L"Account", MappedMemory::Mode::kRead);
+      MappedMemory::Open(path() + L"Account", MappedMemory::Mode::kRead);
   if (mmap_) {
-    XELOGI("Loading Account file from path %SAccount", directory().c_str());
+    XELOGI("Loading Account file from path %SAccount", path().c_str());
 
     X_XAMACCOUNTINFO tmp_acct;
     bool success = DecryptAccountFile(mmap_->data(), &tmp_acct);
@@ -137,10 +206,10 @@ void UserProfile::LoadProfile() {
     mmap_->Close();
   }
 
-  XELOGI("Loading profile GPDs from path %S", directory().c_str());
+  XELOGI("Loading profile GPDs from path %S", path().c_str());
 
-  mmap_ = MappedMemory::Open(directory() + L"FFFE07D1.gpd",
-                             MappedMemory::Mode::kRead);
+  mmap_ =
+      MappedMemory::Open(path() + L"FFFE07D1.gpd", MappedMemory::Mode::kRead);
   if (mmap_) {
     dash_gpd_.Read(mmap_->data(), mmap_->size());
     mmap_->Close();
@@ -229,7 +298,7 @@ void UserProfile::LoadProfile() {
   for (auto title : titles) {
     wchar_t fname[256];
     swprintf(fname, 256, L"%X.gpd", title.title_id);
-    mmap_ = MappedMemory::Open(directory() + fname, MappedMemory::Mode::kRead);
+    mmap_ = MappedMemory::Open(path() + fname, MappedMemory::Mode::kRead);
     if (!mmap_) {
       XELOGE("Failed to open GPD for title %X (%s)!", title.title_id,
              xe::to_string(title.title_name).c_str());
@@ -250,6 +319,7 @@ void UserProfile::LoadProfile() {
   }
 
   XELOGI("Loaded %d profile GPDs", title_gpds_.size());
+  return true;
 }
 
 xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
@@ -535,16 +605,16 @@ bool UserProfile::UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data) {
     return false;
   }
 
-  if (!filesystem::PathExists(directory())) {
-    filesystem::CreateFolder(directory());
+  if (!filesystem::PathExists(path())) {
+    filesystem::CreateFolder(path());
   }
 
   wchar_t fname[256];
   swprintf(fname, 256, L"%X.gpd", title_id);
 
-  filesystem::CreateFile(directory() + fname);
+  filesystem::CreateFile(path() + fname);
   auto mmap_ = MappedMemory::Open(
-      directory() + fname, MappedMemory::Mode::kReadWrite, 0, gpd_length);
+      path() + fname, MappedMemory::Mode::kReadWrite, 0, gpd_length);
   if (!mmap_) {
     XELOGE("Failed to open %X.gpd for writing!", title_id);
     return false;

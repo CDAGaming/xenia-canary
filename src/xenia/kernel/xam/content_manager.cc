@@ -44,36 +44,14 @@ uint32_t ContentManager::title_id() {
   return kernel_state_->title_id();
 }
 
-std::wstring ContentManager::ResolvePackageRoot(uint32_t content_type) {
+std::wstring ContentManager::ResolvePackageRoot(uint32_t content_type,
+                                                uint32_t title_id) {
   wchar_t title_id_str[9] = L"00000000";
-  std::swprintf(title_id_str, 9, L"%.8X", title_id());
+  std::swprintf(title_id_str, 9, L"%.8X",
+                title_id == -1 ? this->title_id() : title_id);
 
   wchar_t content_type_str[9] = L"00000000";
   std::swprintf(content_type_str, 9, L"%.8X", content_type);
-
-    std::wstring type_name;
-    switch (content_type) {
-      case 1:
-        // Save games.
-        type_name = L"00000001";
-        break;
-      case 2:
-        // DLC from the marketplace.
-        type_name = L"00000002";
-        break;
-      case 3:
-        // Publisher content?
-        type_name = L"00000003";
-        break;
-      case 0x000D0000:
-        // ???
-        type_name = L"000D0000";
-        break;
-      default:
-		type_name = L"00000000";
-        //assert_unhandled_case(data.content_type);
-        //return nullptr;
-    }
 
   // Package root path:
   // content_root/title_id/type_name/

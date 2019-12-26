@@ -175,7 +175,8 @@ class UserProfile {
 
   uint64_t xuid() const { return account_.xuid_online; }
   std::string name() const { return account_.GetGamertagString(); }
-  std::wstring directory() const;
+  std::wstring path() const;
+  std::wstring path(uint64_t xuid) const;
   // uint32_t signin_state() const { return 1; }
 
   xdbf::GpdFile* SetTitleSpaData(const xdbf::SpaFile& spa_data);
@@ -188,13 +189,17 @@ class UserProfile {
   bool UpdateAllGpds();
 
  private:
-  void LoadProfile();
+  bool LoadProfile();
+  std::wstring MountProfile(const std::wstring& path);
+
   bool UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data);
 
   bool AddSettingIfNotExist(xdbf::Setting& setting);
 
   KernelState* kernel_state_;
 
+  std::wstring profile_path_;
+  std::wstring base_path_;
   X_XAMACCOUNTINFO account_;
 
   std::unordered_map<uint32_t, xdbf::GpdFile> title_gpds_;
