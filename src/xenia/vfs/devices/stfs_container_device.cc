@@ -648,8 +648,8 @@ bool StfsVolumeDescriptor::Read(const uint8_t* p) {
   }
   version = xe::load_and_swap<uint8_t>(p + 0x01);
   flags = xe::load_and_swap<uint8_t>(p + 0x02);
-  file_table_block_count = xe::load_and_swap<uint16_t>(p + 0x03);
-  file_table_block_number = load_uint24_be(p + 0x05);
+  file_table_block_count = xe::load<uint16_t>(p + 0x03);
+  file_table_block_number = load_uint24_le(p + 0x05);
   std::memcpy(top_hash_table_hash, p + 0x08, 0x14);
   total_allocated_block_count = xe::load_and_swap<uint32_t>(p + 0x1C);
   total_unallocated_block_count = xe::load_and_swap<uint32_t>(p + 0x20);
