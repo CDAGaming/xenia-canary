@@ -48,7 +48,7 @@ KernelState::KernelState(Emulator* emulator)
   file_system_ = emulator->file_system();
 
   app_manager_ = std::make_unique<xam::AppManager>();
-  user_profile_ = std::make_unique<xam::UserProfile>();
+  user_profile_ = std::make_unique<xam::UserProfile>(this);
 
   auto content_root = emulator_->content_root();
   content_root = xe::to_absolute_path(content_root);

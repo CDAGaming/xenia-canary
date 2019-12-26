@@ -7,6 +7,8 @@
  ******************************************************************************
  */
 
+#include "xenia/kernel/xam/user_profile.h"
+
 #include <sstream>
 
 #include "xenia/base/clock.h"
@@ -14,15 +16,12 @@
 #include "xenia/base/filesystem.h"
 #include "xenia/base/logging.h"
 #include "xenia/base/mapped_memory.h"
+#include "xenia/emulator.h"
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/util/crypto_utils.h"
 #include "xenia/kernel/util/shim_utils.h"
-#include "xenia/kernel/xam/user_profile.h"
 
 DECLARE_int32(license_mask);
-
-DEFINE_string(profile_directory, "Content\\Profile\\",
-              "The directory to store profile data inside", "Kernel");
 
 namespace xe {
 namespace kernel {
@@ -33,7 +32,8 @@ std::string X_XAMACCOUNTINFO::GetGamertagString() const {
 }
 
 std::wstring UserProfile::directory() const {
-  return xe::to_wstring(cvars::profile_directory);
+  return xe::to_absolute_path(kernel_state_->emulator()->content_root() +
+                              L"\\profile\\");
 }
 
 bool UserProfile::DecryptAccountFile(const uint8_t* data,
@@ -106,7 +106,8 @@ void UserProfile::EncryptAccountFile(const X_XAMACCOUNTINFO* input,
             enc_data_size);
 }
 
-UserProfile::UserProfile() : dash_gpd_(kDashboardID) {
+UserProfile::UserProfile(KernelState* kernel_state)
+    : kernel_state_(kernel_state), dash_gpd_(kDashboardID) {
   account_.xuid_online = 0xE000BABEBABEBABE;
   wcscpy(account_.gamertag, L"XeniaUser");
 
@@ -116,11 +117,9 @@ UserProfile::UserProfile() : dash_gpd_(kDashboardID) {
 
 void UserProfile::LoadProfile() {
   auto mmap_ =
-      MappedMemory::Open(xe::to_wstring(cvars::profile_directory) + L"Account",
-                         MappedMemory::Mode::kRead);
+      MappedMemory::Open(directory() + L"Account", MappedMemory::Mode::kRead);
   if (mmap_) {
-    XELOGI("Loading Account file from path %SAccount",
-           xe::to_wstring(cvars::profile_directory).c_str());
+    XELOGI("Loading Account file from path %SAccount", directory().c_str());
 
     X_XAMACCOUNTINFO tmp_acct;
     bool success = DecryptAccountFile(mmap_->data(), &tmp_acct);
@@ -138,12 +137,10 @@ void UserProfile::LoadProfile() {
     mmap_->Close();
   }
 
-  XELOGI("Loading profile GPDs from path %S",
-         xe::to_wstring(cvars::profile_directory).c_str());
+  XELOGI("Loading profile GPDs from path %S", directory().c_str());
 
-  mmap_ = MappedMemory::Open(
-      xe::to_wstring(cvars::profile_directory) + L"FFFE07D1.gpd",
-      MappedMemory::Mode::kRead);
+  mmap_ = MappedMemory::Open(directory() + L"FFFE07D1.gpd",
+                             MappedMemory::Mode::kRead);
   if (mmap_) {
     dash_gpd_.Read(mmap_->data(), mmap_->size());
     mmap_->Close();
@@ -232,8 +229,7 @@ void UserProfile::LoadProfile() {
   for (auto title : titles) {
     wchar_t fname[256];
     swprintf(fname, 256, L"%X.gpd", title.title_id);
-    mmap_ = MappedMemory::Open(xe::to_wstring(cvars::profile_directory) + fname,
-                               MappedMemory::Mode::kRead);
+    mmap_ = MappedMemory::Open(directory() + fname, MappedMemory::Mode::kRead);
     if (!mmap_) {
       XELOGE("Failed to open GPD for title %X (%s)!", title.title_id,
              xe::to_string(title.title_name).c_str());
@@ -539,17 +535,16 @@ bool UserProfile::UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data) {
     return false;
   }
 
-  if (!filesystem::PathExists(xe::to_wstring(cvars::profile_directory))) {
-    filesystem::CreateFolder(xe::to_wstring(cvars::profile_directory));
+  if (!filesystem::PathExists(directory())) {
+    filesystem::CreateFolder(directory());
   }
 
   wchar_t fname[256];
   swprintf(fname, 256, L"%X.gpd", title_id);
 
-  filesystem::CreateFile(xe::to_wstring(cvars::profile_directory) + fname);
-  auto mmap_ =
-      MappedMemory::Open(xe::to_wstring(cvars::profile_directory) + fname,
-                         MappedMemory::Mode::kReadWrite, 0, gpd_length);
+  filesystem::CreateFile(directory() + fname);
+  auto mmap_ = MappedMemory::Open(
+      directory() + fname, MappedMemory::Mode::kReadWrite, 0, gpd_length);
   if (!mmap_) {
     XELOGE("Failed to open %X.gpd for writing!", title_id);
     return false;

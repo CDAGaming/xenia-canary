@@ -18,6 +18,11 @@
 #include "xenia/kernel/xam/xdbf/xdbf.h"
 #include "xenia/xbox.h"
 
+namespace xe {
+namespace kernel {
+class KernelState;
+}  // namespace kernel
+}  // namespace xe
 
 namespace xe {
 namespace kernel {
@@ -166,7 +171,7 @@ class UserProfile {
   static void EncryptAccountFile(const X_XAMACCOUNTINFO* input, uint8_t* output,
                                  bool devkit = false);
 
-  UserProfile();
+  UserProfile(KernelState* kernel_state);
 
   uint64_t xuid() const { return account_.xuid_online; }
   std::string name() const { return account_.GetGamertagString(); }
@@ -187,6 +192,8 @@ class UserProfile {
   bool UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data);
 
   bool AddSettingIfNotExist(xdbf::Setting& setting);
+
+  KernelState* kernel_state_;
 
   X_XAMACCOUNTINFO account_;
 
