@@ -730,6 +730,11 @@ dword_result_t XamUserCreateTitlesPlayedEnumerator(
   std::vector<xdbf::TitlePlayed> titles;
   kernel_state()->user_profile()->GetDashboardGpd()->GetTitles(&titles);
 
+  // Sort titles by date played
+  std::sort(titles.begin(), titles.end(),
+            [](const xdbf::TitlePlayed& first, const xdbf::TitlePlayed& second)
+                -> bool { return first.last_played > second.last_played; });
+
   auto e = new XStaticEnumerator(kernel_state(), games_count, kEntrySize);
   e->Initialize();
 
