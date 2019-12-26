@@ -19,12 +19,14 @@
 #include "xenia/kernel/util/shim_utils.h"
 #include "xenia/kernel/xam/user_profile.h"
 
-namespace xe {
-namespace kernel {
-namespace xam {
+DECLARE_int32(license_mask);
 
 DEFINE_string(profile_directory, "Content\\Profile\\",
               "The directory to store profile data inside", "Kernel");
+
+namespace xe {
+namespace kernel {
+namespace xam {
 
 std::string X_XAMACCOUNTINFO::GetGamertagString() const {
   return xe::to_string(std::wstring(gamertag));
@@ -280,7 +282,11 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
       (uint32_t)xdbf::X_XDBF_XTHD_DATA::Flags::kNeverIncludeInProfile) {
     title_included = false;
   }
-  // TODO: set title_included if 'owned' (license_mask check?)
+
+  // If arcade game, only include if license_mask is set
+  if ((title_data.title_id >> 16) == 0x5841) {
+    title_included = cvars::license_mask != 0;
+  }
 
   xdbf::TitlePlayed title_info;
   auto gpd = title_gpds_.find(title_data.title_id);
