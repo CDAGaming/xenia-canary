@@ -608,18 +608,25 @@ void KernelState::RegisterNotifyListener(XNotifyListener* listener) {
   // https://cs.rin.ru/forum/viewtopic.php?f=38&t=60668&hilit=resident+evil+5&start=375
   if (!has_notified_startup_ && listener->mask() & 0x00000001) {
     has_notified_startup_ = true;
+    // begin
+    listener->EnqueueNotification(0x00000001, 1);
     // XN_SYS_UI (on, off)
     listener->EnqueueNotification(0x00000009, 1);
     listener->EnqueueNotification(0x00000009, 0);
     // XN_SYS_SIGNINCHANGED x2
     listener->EnqueueNotification(0x0000000A, 1);
     listener->EnqueueNotification(0x0000000A, 1);
+    // HDD ?
+    listener->EnqueueNotification(0x0000000B, 0);
+    listener->EnqueueNotification(0x0000000B, 1);
     // XN_SYS_INPUTDEVICESCHANGED x2
     listener->EnqueueNotification(0x00000012, 0);
     listener->EnqueueNotification(0x00000012, 0);
     // XN_SYS_INPUTDEVICECONFIGCHANGED x2
     listener->EnqueueNotification(0x00000013, 0);
     listener->EnqueueNotification(0x00000013, 0);
+    // end
+    listener->EnqueueNotification(0x00000026, 1);
   }
 }
 

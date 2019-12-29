@@ -396,9 +396,14 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
   if (overlapped) {
     XOverlappedSetResult((void*)overlapped.host_address(), X_ERROR_IO_PENDING);
   }
-
+  
+  // broadcast begin 
+  kernel_state()->BroadcastNotification(0x1, 1);
   // Broadcast XN_SYS_UI = true
   kernel_state()->BroadcastNotification(0x9, true);
+  // broadcast HDD changed 
+  kernel_state()->BroadcastNotification(0xB, 0);
+  kernel_state()->BroadcastNotification(0xB, 1);
 
   auto ui_fn = [content_type, device_id_ptr, overlapped]() {
     XELOGW("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
@@ -407,18 +412,18 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
     // NOTE: 0xF00D0000 magic from xam_content.cc
     switch (content_type) {
       case 1:  // save game
-        *device_id_ptr = 0xF00D0000 | 0x0001;
+        *device_id_ptr = 0x00000001 | 0x0001;
         break;
       case 2:  // marketplace
-        *device_id_ptr = 0xF00D0000 | 0x0002;
+        *device_id_ptr = 0x00000001 | 0x0002;
         break;
       case 3:  // title/publisher update?
-        *device_id_ptr = 0xF00D0000 | 0x0003;
+        *device_id_ptr = 0x00000001 | 0x0003;
         break;
       default:
         XELOGW("XamShowDeviceSelectorUI Unhandled Content_type:(%X)", content_type);
         assert_unhandled_case(content_type);
-        *device_id_ptr = 0xF00D0000 | 0x0001;
+        *device_id_ptr = 0x00000001 | 0x0001;
         break;
     }
 
@@ -447,9 +452,13 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
     while (ui_thread->last_error() != X_ERROR_SUCCESS) {
       xe::threading::Sleep(std::chrono::milliseconds(110));
     }
+    // broadcast end 
+    kernel_state()->BroadcastNotification(0x26, 1);
     return X_ERROR_IO_PENDING;
   } else {
     ui_fn();
+    // broadcast end 
+    kernel_state()->BroadcastNotification(0x26, 1);
     return X_ERROR_SUCCESS;
   }
 }

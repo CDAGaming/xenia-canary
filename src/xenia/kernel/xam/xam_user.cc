@@ -47,9 +47,10 @@ dword_result_t XamProfileCreateEnumerator(dword_t device_id,
   X_PROFILEENUMRESULT* profile = (X_PROFILEENUMRESULT*)e->AppendItem();
   memset(profile, 0, sizeof(X_PROFILEENUMRESULT));
   profile->xuid_offline = user_profile->xuid();
-  profile->device_id = 0xF00D0000;
+  profile->device_id = 0x00000001;
 
   auto tag = xe::to_wstring(user_profile->name());
+  XELOGI("XamProfileCreateEnumerator profile:(%S)", tag.c_str());
   xe::copy_and_swap<wchar_t>(profile->account.gamertag, tag.c_str(),
                              tag.length());
   profile->account.xuid_online = user_profile->xuid();
