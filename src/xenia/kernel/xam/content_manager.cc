@@ -281,20 +281,6 @@ X_RESULT ContentManager::DeleteContent(const XCONTENT_DATA& data) {
   return result;
 }
 
-std::wstring ContentManager::ResolveGameUserContentPath() {
-  wchar_t title_id[9] = L"00000000";
-  std::swprintf(title_id, 9, L"%.8X", kernel_state_->title_id());
-  auto user_name = xe::to_wstring(kernel_state_->user_profile()->name());
-
-  // Per-game per-profile data location:
-  // content_root/title_id/profile/user_name
-  auto package_root = xe::join_paths(
-      root_path_,
-      xe::join_paths(title_id,
-                     xe::join_paths(kGameUserContentDirName, user_name)));
-  return package_root + xe::kWPathSeparator;
-}
-
 }  // namespace xam
 }  // namespace kernel
 }  // namespace xe
