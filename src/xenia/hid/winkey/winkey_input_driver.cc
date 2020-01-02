@@ -45,11 +45,40 @@ WinKeyInputDriver::WinKeyInputDriver(xe::ui::Window* window)
 
 WinKeyInputDriver::~WinKeyInputDriver() = default;
 
-X_STATUS WinKeyInputDriver::Setup() { return X_STATUS_SUCCESS; }
+X_STATUS WinKeyInputDriver::Setup(
+    std::vector<std::unique_ptr<hid::InputDriver>>& drivers) {
+  int index = 0;
+  X_INPUT_STATE state;
+
+  // Search already added drivers for an index that none of them can use
+  while (index < 4) {
+    bool not_connected = false;
+
+    for (auto& driver : drivers) {
+      if (driver.get()->GetState(index, &state) !=
+          X_ERROR_DEVICE_NOT_CONNECTED) {
+        not_connected = false;
+        break;
+      }
+      not_connected = true;
+    }
+
+    if (not_connected) {
+      user_index_ = index;
+      return X_STATUS_SUCCESS;
+    }
+    index++;
+  }
+
+  // All indexes are in use...
+  user_index_ = -1;
+  // Return error so this driver won't get used
+  return X_ERROR_DEVICE_NOT_CONNECTED;
+}
 
 X_RESULT WinKeyInputDriver::GetCapabilities(uint32_t user_index, uint32_t flags,
                                             X_INPUT_CAPABILITIES* out_caps) {
-  if (user_index != 0) {
+  if (user_index != user_index_) {
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
@@ -74,7 +103,7 @@ X_RESULT WinKeyInputDriver::GetCapabilities(uint32_t user_index, uint32_t flags,
 
 X_RESULT WinKeyInputDriver::GetState(uint32_t user_index,
                                      X_INPUT_STATE* out_state) {
-  if (user_index != 0) {
+  if (user_index != user_index_) {
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
@@ -214,7 +243,7 @@ X_RESULT WinKeyInputDriver::GetState(uint32_t user_index,
 
 X_RESULT WinKeyInputDriver::SetState(uint32_t user_index,
                                      X_INPUT_VIBRATION* vibration) {
-  if (user_index != 0) {
+  if (user_index != user_index_) {
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
@@ -223,7 +252,7 @@ X_RESULT WinKeyInputDriver::SetState(uint32_t user_index,
 
 X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
                                          X_INPUT_KEYSTROKE* out_keystroke) {
-  if (user_index != 0) {
+  if (user_index != user_index_) {
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
@@ -356,7 +385,7 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
   out_keystroke->virtual_key = virtual_key;
   out_keystroke->unicode = unicode;
   out_keystroke->flags = keystroke_flags;
-  out_keystroke->user_index = 0;
+  out_keystroke->user_index = user_index_;
   out_keystroke->hid_code = hid_code;
 
   // X_ERROR_EMPTY if no new keys

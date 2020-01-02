@@ -194,7 +194,7 @@ std::vector<std::unique_ptr<hid::InputDriver>> CreateInputDrivers(
 #endif  // XE_PLATFORM_WIN32
     factory.Add("sdl", xe::hid::sdl::Create);
     for (auto& driver : factory.CreateAll(cvars::hid, window)) {
-      if (XSUCCEEDED(driver->Setup())) {
+      if (XSUCCEEDED(driver->Setup(drivers))) {
         drivers.emplace_back(std::move(driver));
       }
     }

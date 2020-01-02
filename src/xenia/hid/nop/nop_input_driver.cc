@@ -19,7 +19,10 @@ NopInputDriver::NopInputDriver(xe::ui::Window* window) : InputDriver(window) {}
 
 NopInputDriver::~NopInputDriver() = default;
 
-X_STATUS NopInputDriver::Setup() { return X_STATUS_SUCCESS; }
+X_STATUS NopInputDriver::Setup(
+    std::vector<std::unique_ptr<InputDriver>>& drivers) {
+  return X_STATUS_SUCCESS;
+}
 
 // TODO(benvanik): spoof a device so that games don't stop waiting for
 //     a controller to be plugged in.
