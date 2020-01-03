@@ -290,8 +290,8 @@ bool UserProfile::Login(uint64_t offline_xuid) {
   xuid_offline_ = offline_xuid;
   auto profile_path = path(xuid_offline_);
 
-  if (xuid_offline_ == 1) {
-    // XUID = 1, login as the first non-signed-in profile
+  if (!xuid_offline_) {
+    // Try logging in as any non-signed-in profile...
     profile_path.clear();
 
     auto profiles = Enumerate(kernel_state_, true);
@@ -302,7 +302,7 @@ bool UserProfile::Login(uint64_t offline_xuid) {
     }
   }
 
-  if (!xuid_offline_ || profile_path.empty()) {
+  if (profile_path.empty()) {
     XELOGW(
         "UserProfile::Login: Couldn't find available profile to login to, "
         "using temp. profile");

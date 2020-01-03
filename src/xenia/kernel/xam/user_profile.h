@@ -210,9 +210,10 @@ class UserProfile {
   bool UpdateAllGpds();
 
   // Tries logging this user into a profile
-  // If XUID == 0, will use Xenia generated profile
-  // If XUID == 1, will try loading from any available profile
-  // If XUID is any other ID, will try loading from the profile it belongs to
+  // If XUID is set, will try signing into the profile it belongs to
+  // Otherwise will try signing into any available (not already signed in)
+  // profile
+  // If no profiles are available, will use a Xenia-generated one
   bool Login(uint64_t offline_xuid = 0);
   void Logout();
 
