@@ -835,5 +835,44 @@ bool KernelState::Restore(ByteStream* stream) {
   return true;
 }
 
+xam::UserProfile* KernelState::user_profile(uint32_t user_index,
+                                            bool allow_signed_out) const {
+  auto index_enum = static_cast<xam::UserProfile::UserIndex>(user_index);
+  bool use_any_profile = index_enum == xam::UserProfile::UserIndex::kAny;
+
+  // TODO: how to handle these two cases?
+  if (index_enum == xam::UserProfile::UserIndex::kFocus) {
+    assert_always();
+    use_any_profile = true;  // temp
+  }
+  if (index_enum == xam::UserProfile::UserIndex::kNone) {
+    assert_always();
+    return nullptr;
+  }
+
+  // TODO: any callers that use kAny need to be updated so they'll apply to all
+  // profiles!
+  if (use_any_profile) {
+    for (auto& user : user_profiles_) {
+      if (allow_signed_out || user->signed_in()) {
+        return user.get();
+      }
+    }
+    return nullptr;
+  }
+
+  if (user_index >= xam::kMaxNumUsers) {
+    return nullptr;
+  }
+
+  auto user = &user_profiles_[user_index];
+  if (!allow_signed_out) {
+    if (!user->get()->signed_in()) {
+      return nullptr;
+    }
+  }
+  return user->get();
+}
+
 }  // namespace kernel
 }  // namespace xe

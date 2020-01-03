@@ -108,23 +108,7 @@ class KernelState {
   // (unless allow_signed_out is true, to allow for code dealing with sign-ins
   // etc)
   xam::UserProfile* user_profile(uint32_t user_index,
-                                 bool allow_signed_out = false) const {
-    if (user_index == 0xFF) {
-      user_index = 0;
-    }
-
-    if (user_index >= xam::kMaxNumUsers) {
-      return nullptr;
-    }
-
-    auto user = &user_profiles_[user_index];
-    if (!allow_signed_out) {
-      if (!user->get()->signed_in()) {
-        return nullptr;
-      }
-    }
-    return user->get();
-  }
+                                 bool allow_signed_out = false) const;
 
   uint32_t num_profiles() const { return xam::kMaxNumUsers; }
 

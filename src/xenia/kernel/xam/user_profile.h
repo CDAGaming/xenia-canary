@@ -166,6 +166,12 @@ struct X_XAMACCOUNTINFO {
 
 class UserProfile {
  public:
+  enum class UserIndex {
+    kAny = 0xFF,    // applies to any or all signed-in users
+    kNone = 0xFE,   // this isn't tied to any signed-in user
+    kFocus = 0xFD,  // whichever user last acted / was last in focus
+  };
+
   static void CreateUsers(KernelState* kernel_state,
                           std::unique_ptr<UserProfile>* profiles);
 
