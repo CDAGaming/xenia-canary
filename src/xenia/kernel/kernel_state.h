@@ -102,7 +102,42 @@ class KernelState {
   xam::ContentManager* content_manager() const {
     return content_manager_.get();
   }
-  xam::UserProfile* user_profile() const { return user_profile_.get(); }
+
+  // Returns pointer to UserProfile for the given user_index
+  // Returns nullptr if user_index is invalid, or user isn't signed in
+  // (unless allow_signed_out is true, to allow for code dealing with sign-ins
+  // etc)
+  xam::UserProfile* user_profile(uint32_t user_index,
+                                 bool allow_signed_out = false) const {
+    if (user_index == 0xFF) {
+      user_index = 0;
+    }
+
+    if (user_index >= xam::kMaxNumUsers) {
+      return nullptr;
+    }
+
+    auto user = &user_profiles_[user_index];
+    if (!allow_signed_out) {
+      if (!user->get()->signed_in()) {
+        return nullptr;
+      }
+    }
+    return user->get();
+  }
+
+  uint32_t num_profiles() const { return xam::kMaxNumUsers; }
+
+  xam::UserProfile* user_profile(uint64_t xuid) const {
+    for (int i = 0; i < xam::kMaxNumUsers; i++) {
+      auto profile = user_profiles_[i].get();
+      if (profile->xuid() == xuid || profile->xuid_offline() == xuid) {
+        return profile;
+      }
+    }
+
+    return nullptr;
+  }
 
   // Access must be guarded by the global critical region.
   util::ObjectTable* object_table() { return &object_table_; }
@@ -188,7 +223,8 @@ class KernelState {
 
   std::unique_ptr<xam::AppManager> app_manager_;
   std::unique_ptr<xam::ContentManager> content_manager_;
-  std::unique_ptr<xam::UserProfile> user_profile_;
+
+  std::unique_ptr<xam::UserProfile> user_profiles_[xam::kMaxNumUsers];
 
   xe::global_critical_region global_critical_region_;
 

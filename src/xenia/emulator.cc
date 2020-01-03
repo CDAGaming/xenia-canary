@@ -704,7 +704,13 @@ X_STATUS Emulator::CompleteLaunch(const std::wstring& path,
       if (spa.Read(module->memory()->TranslateVirtual(resource_data),
                    resource_size)) {
         // Set title SPA and get title name/icon
-        kernel_state_->user_profile()->SetTitleSpaData(spa);
+        for (uint32_t i = 0; i < kernel_state_->num_profiles(); i++) {
+          auto profile = kernel_state_->user_profile(i);
+          if (profile) {
+            profile->SetTitleSpaData(spa);
+          }
+        }
+
         game_title_ = xe::to_wstring(spa.GetTitleName());
         auto icon_block = spa.GetIcon();
         if (icon_block) {

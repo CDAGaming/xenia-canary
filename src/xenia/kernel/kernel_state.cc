@@ -53,7 +53,7 @@ KernelState::KernelState(Emulator* emulator)
   content_root = xe::to_absolute_path(content_root);
   content_manager_ = std::make_unique<xam::ContentManager>(this, content_root);
 
-  user_profile_ = std::make_unique<xam::UserProfile>(this);
+  xam::UserProfile::CreateUsers(this, user_profiles_);
 
   assert_null(shared_kernel_state_);
   shared_kernel_state_ = this;

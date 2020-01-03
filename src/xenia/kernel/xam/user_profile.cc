@@ -24,11 +24,137 @@
 
 DECLARE_int32(license_mask);
 
-DEFINE_int64(profile_xuid, -1, "XUID of the profile to load in (E0...)", "XAM");
+DEFINE_string(user_0_xuid, "", "XUID of the profile to use for user 0 (E0...",
+              "Profiles");
+
+DEFINE_int32(user_0_state, 1, "User 0 signin state (0/1/2)", "Profiles");
+
+DEFINE_string(user_1_xuid, "", "XUID of the profile to use for user 1 (E0...",
+              "Profiles");
+
+DEFINE_int32(user_1_state, 0, "User 1 signin state (0/1/2)", "Profiles");
+
+DEFINE_string(user_2_xuid, "", "XUID of the profile to use for user 2 (E0...",
+              "Profiles");
+
+DEFINE_int32(user_2_state, 0, "User 2 signin state (0/1/2)", "Profiles");
+
+DEFINE_string(user_3_xuid, "", "XUID of the profile to use for user 3 (E0...",
+              "Profiles");
+
+DEFINE_int32(user_3_state, 0, "User 3 signin state (0/1/2)", "Profiles");
 
 namespace xe {
 namespace kernel {
 namespace xam {
+
+void UserProfile::CreateUsers(KernelState* kernel_state,
+                              std::unique_ptr<UserProfile>* profiles) {
+  std::string xuids[] = {cvars::user_0_xuid, cvars::user_1_xuid,
+                         cvars::user_2_xuid, cvars::user_3_xuid};
+  int32_t states[] = {cvars::user_0_state, cvars::user_1_state,
+                      cvars::user_2_state, cvars::user_3_state};
+
+  // Create UserProfile instances for all 4 user slots
+  // But only login the slots the player has already configured
+  for (int i = 0; i < kMaxNumUsers; i++) {
+    auto xuid_str = xuids[i];
+    int32_t state = states[i];
+
+    uint64_t xuid = 0;
+    if (!xuid_str.empty()) {
+      xuid = std::strtoull(xuid_str.c_str(), 0, 16);
+    }
+
+    auto profile = std::make_unique<UserProfile>(kernel_state);
+    profile->signin_state(state);
+    if (state > 0) {
+      profile->Login(xuid);
+    }
+    profiles[i] = std::move(profile);
+  }
+}
+
+uint64_t UserProfile::XuidFromPath(const std::wstring& path) {
+  filesystem::FileInfo info;
+  if (!filesystem::GetInfo(path, &info)) {
+    return -1;
+  }
+
+  auto fname = info.name;
+  size_t len = fname.length();
+
+  // Get substring of name that has valid hex chars
+  // TODO: atm this just stops at . if the filename has it..
+  // it should probably check each char is valid hex instead
+  size_t i = 0;
+  for (auto c : fname) {
+    if (c == '.') {
+      len = i;
+      break;
+    }
+    i++;
+  }
+
+  auto xuid_str = xe::to_string(fname.substr(0, len));
+  return std::strtoull(xuid_str.c_str(), 0, 16);
+}
+
+std::wstring UserProfile::base_path(KernelState* state) {
+  return xe::to_absolute_path(
+      state->content_manager()->ResolvePackageRoot(0x10000, 0xFFFE07D1));
+}
+
+std::map<uint64_t, std::tuple<std::wstring, X_XAMACCOUNTINFO>>
+UserProfile::Enumerate(KernelState* state, bool exclude_signed_in) {
+  std::map<uint64_t, std::tuple<std::wstring, X_XAMACCOUNTINFO>> map;
+
+  auto files = filesystem::ListFiles(base_path(state));
+  for (auto f : files) {
+    auto profile_path = f.path + f.name;
+    // use .dir for this profile if it exists
+    auto dir_path = profile_path + L".dir\\";
+    if (filesystem::PathExists(dir_path)) {
+      profile_path = dir_path;
+    }
+
+    auto xuid = XuidFromPath(profile_path);
+    if (!xuid) {
+      continue;  // could cause infinite loop, so skip any invalid ones
+    }
+    if (map.count(xuid)) {
+      continue;  // already added this xuid!
+    }
+
+    bool in_use = false;
+    if (exclude_signed_in) {
+      // check if this xuid is signed in already
+      for (uint32_t i = 0; i < state->num_profiles(); i++) {
+        auto profile = state->user_profile(i);
+        if (!profile) {
+          continue;
+        }
+        if (profile->xuid() == xuid || profile->xuid_offline() == xuid) {
+          in_use = true;
+          break;
+        }
+      }
+    }
+
+    if (!in_use) {
+      // Login with UserProfile so we can retrieve info about it
+      auto profile = std::make_unique<UserProfile>(state);
+      if (!profile->Login(xuid)) {
+        continue;
+      }
+
+      map[xuid] = std::tuple<std::wstring, X_XAMACCOUNTINFO>(profile_path,
+                                                             profile->account_);
+    }
+  }
+
+  return map;
+}
 
 std::string X_XAMACCOUNTINFO::GetGamertagString() const {
   return xe::to_string(std::wstring(gamertag));
@@ -120,37 +246,27 @@ void UserProfile::EncryptAccountFile(const X_XAMACCOUNTINFO* input,
 
 UserProfile::UserProfile(KernelState* kernel_state)
     : kernel_state_(kernel_state), dash_gpd_(kDashboardID) {
-  base_path_ =
-      xe::to_absolute_path(kernel_state_->content_manager()->ResolvePackageRoot(
-          0x10000, 0xFFFE07D1));
-
-  account_.xuid_online = cvars::profile_xuid;
-  wcscpy(account_.gamertag, L"XeniaUser");
-
-  // Try loading profile GPD files...
-  LoadProfile();
+  base_path_ = base_path(kernel_state);  // store path for later
 }
 
-std::wstring UserProfile::MountProfile(const std::wstring& path) {
+std::wstring UserProfile::ExtractProfile(const std::wstring& path) {
   auto package = path;
   auto package_dir = package + L".dir\\";
   if (filesystem::PathExists(package_dir)) {
     return package_dir;
   }
 
+  // Get info about the path
   filesystem::FileInfo info;
-  // Get info for the original path too, in case we changed to the .dir above
   if (!filesystem::GetInfo(package, &info)) {
-    return L"";
+    // Path doesn't exist - return the .dir version to create later
+    return package_dir;
   }
-  auto file_system = kernel_state_->file_system();
 
-  auto file_name = xe::to_string(info.name);
-  auto mount_path = "\\Device\\Profile_" + file_name;
-
-  // If package still points to a file, open it as STFS and extract
+  // If path points to a file, open it as STFS and extract
   if (info.type == filesystem::FileInfo::Type::kFile) {
     XELOGI("MountProfile: extracting STFS profile %S", package.c_str());
+    auto mount_path = "\\Device\\Profile_" + xe::to_string(info.name);
 
     // Register the container in the virtual filesystem.
     auto device =
@@ -166,63 +282,141 @@ std::wstring UserProfile::MountProfile(const std::wstring& path) {
     return package_dir;
   }
 
+  // Must be an existing directory, just return the path for it
   return package + L"\\";
 }
 
-bool UserProfile::LoadProfile() {
-  auto profile_path = path(cvars::profile_xuid);
-  if (cvars::profile_xuid == -1) {
-    auto files = filesystem::ListFiles(path());
-    // TODO: allow choosing by index maybe?
-    for (auto f : files) {
-      profile_path = f.path + f.name;
-      break;  // use first found dir/package as profile
+bool UserProfile::Login(uint64_t offline_xuid) {
+  xuid_offline_ = offline_xuid;
+  auto profile_path = path(xuid_offline_);
+
+  if (xuid_offline_ == 1) {
+    // XUID = 1, login as the first non-signed-in profile
+    profile_path.clear();
+
+    auto profiles = Enumerate(kernel_state_, true);
+    if (profiles.size() > 0) {
+      auto& profile = profiles.begin();
+      xuid_offline_ = profile->first;
+      profile_path = std::get<0>(profile->second);
     }
   }
 
-  profile_path_ = MountProfile(profile_path);
+  if (!xuid_offline_ || profile_path.empty()) {
+    XELOGW(
+        "UserProfile::Login: Couldn't find available profile to login to, "
+        "using temp. profile");
+
+    memset(&account_, 0, sizeof(X_XAMACCOUNTINFO));
+    // Create some unique IDs for the profile
+    static int num_xuids = 0;
+    xuid_offline_ = 0xE0000000BEEFCAFE + num_xuids;
+    account_.xuid_online = 0x09000000BEEFCAFE + num_xuids;
+    swprintf_s(account_.gamertag, L"XeniaUser%d", num_xuids);
+    num_xuids++;
+    profile_path = path(xuid_offline_);
+  }
+
+  // Try extracting profile to a folder, so we can modify any contents
+  profile_path_ = ExtractProfile(profile_path);
   if (profile_path_.empty()) {
+    XELOGW("UserProfile::Login: Failed to extract profile from %S!",
+           profile_path.c_str());
     return false;
   }
 
-  auto mmap_ =
-      MappedMemory::Open(path() + L"Account", MappedMemory::Mode::kRead);
-  if (mmap_) {
-    XELOGI("Loading Account file from path %SAccount", path().c_str());
-
-    X_XAMACCOUNTINFO tmp_acct;
-    bool success = DecryptAccountFile(mmap_->data(), &tmp_acct);
-    if (!success) {
-      success = DecryptAccountFile(mmap_->data(), &tmp_acct, true);
-    }
-
-    if (!success) {
-      XELOGW("Failed to decrypt Account file data");
+  if (!filesystem::PathExists(profile_path_)) {
+    // Profile path doesn't exist - create new profile!
+    if (!filesystem::CreateFolder(profile_path_)) {
+      XELOGE("UserProfile::Login: Failed to create profile for '%S' at %S!",
+             account_.gamertag, path().c_str());
     } else {
-      std::memcpy(&account_, &tmp_acct, sizeof(X_XAMACCOUNTINFO));
-      XELOGI("Loaded Account \"%s\" successfully!", name().c_str());
+      // Write out an account file
+      filesystem::CreateFile(
+          path() + L"Account");  // MappedMemory needs an existing file...
+      auto mmap_ = MappedMemory::Open(path() + L"Account",
+                                      MappedMemory::Mode::kReadWrite, 0,
+                                      sizeof(X_XAMACCOUNTINFO) + 0x18);
+      if (!mmap_) {
+        XELOGE("UserProfile::Login: Failed to create new Account at %S!",
+               path().c_str());
+      } else {
+        XELOGI("Writing Account file for '%S' to path %SAccount",
+               account_.gamertag, path().c_str());
+        EncryptAccountFile(&account_, mmap_->data(), false);
+        mmap_->Close();
+      }
+
+      // Dash GPD will be updated below, after default settings are added
+    }
+  } else {
+    // Profile exists, load Account and any GPDs
+    auto mmap_ =
+        MappedMemory::Open(path() + L"Account", MappedMemory::Mode::kRead);
+    if (mmap_) {
+      XELOGI("Loading Account file from path %SAccount", path().c_str());
+
+      X_XAMACCOUNTINFO tmp_acct;
+      bool success = DecryptAccountFile(mmap_->data(), &tmp_acct);
+      if (!success) {
+        success = DecryptAccountFile(mmap_->data(), &tmp_acct, true);
+      }
+
+      if (!success) {
+        XELOGW("Failed to decrypt Account file data");
+      } else {
+        std::memcpy(&account_, &tmp_acct, sizeof(X_XAMACCOUNTINFO));
+        XELOGI("Loaded Account '%s' successfully!", name().c_str());
+      }
+
+      mmap_->Close();
     }
 
-    mmap_->Close();
-  }
+    XELOGD("Loading profile GPDs from path %S", path().c_str());
 
-  XELOGI("Loading profile GPDs from path %S", path().c_str());
+    mmap_ =
+        MappedMemory::Open(path() + L"FFFE07D1.gpd", MappedMemory::Mode::kRead);
+    if (mmap_) {
+      dash_gpd_.Read(mmap_->data(), mmap_->size());
+      mmap_->Close();
+    } else {
+      XELOGW("Failed to read dash GPD (FFFE07D1.gpd), using blank one");
 
-  mmap_ =
-      MappedMemory::Open(path() + L"FFFE07D1.gpd", MappedMemory::Mode::kRead);
-  if (mmap_) {
-    dash_gpd_.Read(mmap_->data(), mmap_->size());
-    mmap_->Close();
-  } else {
-    XELOGW("Failed to read dash GPD (FFFE07D1.gpd), using blank one");
+      // Create empty settings syncdata, helps tools identify this XDBF as a GPD
+      xdbf::Entry ent;
+      ent.info.section = static_cast<uint16_t>(xdbf::GpdSection::kSetting);
+      ent.info.id = 0x200000000;
+      ent.data.resize(0x18);
+      memset(ent.data.data(), 0, 0x18);
+      dash_gpd_.UpdateEntry(ent);
+    }
 
-    // Create empty settings syncdata, helps tools identify this XDBF as a GPD
-    xdbf::Entry ent;
-    ent.info.section = static_cast<uint16_t>(xdbf::GpdSection::kSetting);
-    ent.info.id = 0x200000000;
-    ent.data.resize(0x18);
-    memset(ent.data.data(), 0, 0x18);
-    dash_gpd_.UpdateEntry(ent);
+    // Load in any extra game GPDs
+    std::vector<xdbf::TitlePlayed> titles;
+    dash_gpd_.GetTitles(&titles);
+
+    for (auto title : titles) {
+      wchar_t fname[256];
+      swprintf(fname, 256, L"%X.gpd", title.title_id);
+      mmap_ = MappedMemory::Open(path() + fname, MappedMemory::Mode::kRead);
+      if (!mmap_) {
+        XELOGE("Failed to open GPD for title %X (%s)!", title.title_id,
+               xe::to_string(title.title_name).c_str());
+        continue;
+      }
+
+      xdbf::GpdFile title_gpd(title.title_id);
+      bool result = title_gpd.Read(mmap_->data(), mmap_->size());
+      mmap_->Close();
+
+      if (!result) {
+        XELOGE("Failed to read GPD for title %X (%s)!", title.title_id,
+               xe::to_string(title.title_name).c_str());
+        continue;
+      }
+
+      title_gpds_[title.title_id] = title_gpd;
+    }
   }
 
   // Add some default settings games/apps usually ask for
@@ -291,35 +485,12 @@ bool UserProfile::LoadProfile() {
   // Make sure the dash GPD is up-to-date
   UpdateGpd(kDashboardID, dash_gpd_);
 
-  // Load in any extra game GPDs
-  std::vector<xdbf::TitlePlayed> titles;
-  dash_gpd_.GetTitles(&titles);
-
-  for (auto title : titles) {
-    wchar_t fname[256];
-    swprintf(fname, 256, L"%X.gpd", title.title_id);
-    mmap_ = MappedMemory::Open(path() + fname, MappedMemory::Mode::kRead);
-    if (!mmap_) {
-      XELOGE("Failed to open GPD for title %X (%s)!", title.title_id,
-             xe::to_string(title.title_name).c_str());
-      continue;
-    }
-
-    xdbf::GpdFile title_gpd(title.title_id);
-    bool result = title_gpd.Read(mmap_->data(), mmap_->size());
-    mmap_->Close();
-
-    if (!result) {
-      XELOGE("Failed to read GPD for title %X (%s)!", title.title_id,
-             xe::to_string(title.title_name).c_str());
-      continue;
-    }
-
-    title_gpds_[title.title_id] = title_gpd;
-  }
-
   XELOGI("Loaded %d profile GPDs", title_gpds_.size());
   return true;
+}
+
+void UserProfile::Logout() {
+  *this = UserProfile(kernel_state_);  // Reset ourselves
 }
 
 xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
@@ -335,6 +506,8 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
   // TODO: let user choose locale?
   spa_data.GetAchievements(spa_data.GetDefaultLocale(), &spa_achievements);
 
+  // Check if title should be included in the dash GPD title list
+  // These checks should hopefully match the same checks X360 uses
   bool title_included =
       title_data.title_type == xdbf::X_XDBF_XTHD_DATA::TitleType::kFull ||
       title_data.title_type == xdbf::X_XDBF_XTHD_DATA::TitleType::kDownload;

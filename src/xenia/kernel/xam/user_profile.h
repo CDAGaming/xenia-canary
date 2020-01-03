@@ -28,6 +28,7 @@ namespace xe {
 namespace kernel {
 namespace xam {
 
+constexpr uint32_t kMaxNumUsers = 4;
 constexpr uint32_t kDashboardID = 0xFFFE07D1;
 
 // https://github.com/jogolden/testdev/blob/master/xkelib/xam/_xamext.h#L68
@@ -165,19 +166,33 @@ struct X_XAMACCOUNTINFO {
 
 class UserProfile {
  public:
+  static void CreateUsers(KernelState* kernel_state,
+                          std::unique_ptr<UserProfile>* profiles);
+
+  // Returns map of OfflineXuid -> Path & AccountInfo pairs
+  static std::map<uint64_t, std::tuple<std::wstring, X_XAMACCOUNTINFO>>
+  Enumerate(KernelState* state, bool exclude_signed_in = false);
+
+  static uint64_t XuidFromPath(const std::wstring& path);
+
   static bool DecryptAccountFile(const uint8_t* data, X_XAMACCOUNTINFO* output,
                                  bool devkit = false);
 
   static void EncryptAccountFile(const X_XAMACCOUNTINFO* input, uint8_t* output,
                                  bool devkit = false);
 
+  static std::wstring base_path(KernelState* state);
+
   UserProfile(KernelState* kernel_state);
 
   uint64_t xuid() const { return account_.xuid_online; }
+  uint64_t xuid_offline() const { return xuid_offline_; }
   std::string name() const { return account_.GetGamertagString(); }
   std::wstring path() const;
   std::wstring path(uint64_t xuid) const;
-  // uint32_t signin_state() const { return 1; }
+  uint32_t signin_state() const { return signin_state_; }
+  void signin_state(uint32_t state) { signin_state_ = state; }
+  bool signed_in() { return signin_state_ != 0 && xuid_offline_ != 0; }
 
   xdbf::GpdFile* SetTitleSpaData(const xdbf::SpaFile& spa_data);
   xdbf::GpdFile* GetTitleGpd(uint32_t title_id = -1);
@@ -188,9 +203,16 @@ class UserProfile {
   bool UpdateTitleGpd(uint32_t title_id = -1);
   bool UpdateAllGpds();
 
+  // Tries logging this user into a profile
+  // If XUID == 0, will use Xenia generated profile
+  // If XUID == 1, will try loading from any available profile
+  // If XUID is any other ID, will try loading from the profile it belongs to
+  bool Login(uint64_t offline_xuid = 0);
+  void Logout();
+
  private:
-  bool LoadProfile();
-  std::wstring MountProfile(const std::wstring& path);
+  // Extracts profile package if needed - returns path to extracted folder
+  std::wstring ExtractProfile(const std::wstring& path);
 
   bool UpdateGpd(uint32_t title_id, xdbf::GpdFile& gpd_data);
 
@@ -200,7 +222,10 @@ class UserProfile {
 
   std::wstring profile_path_;
   std::wstring base_path_;
-  X_XAMACCOUNTINFO account_;
+
+  uint64_t xuid_offline_ = 0;
+  uint32_t signin_state_ = 0;
+  X_XAMACCOUNTINFO account_ = {0};
 
   std::unordered_map<uint32_t, xdbf::GpdFile> title_gpds_;
   xdbf::GpdFile dash_gpd_;

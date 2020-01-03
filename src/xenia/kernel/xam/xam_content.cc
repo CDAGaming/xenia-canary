@@ -386,19 +386,23 @@ dword_result_t XamContentGetCreator(dword_t user_index,
 
   auto content_data = XCONTENT_DATA((uint8_t*)content_data_ptr);
 
-  if (content_data.content_type == 1) {
-    // User always creates saves.
-    *is_creator_ptr = 1;
-    if (creator_xuid_ptr) {
-      *creator_xuid_ptr = kernel_state()->user_profile()->xuid();
-    }
+  auto user_profile = kernel_state()->user_profile(user_index);
+  if (!user_profile) {
+    result = X_ERROR_NOT_LOGGED_ON;  // TODO: find right error code
   } else {
-    *is_creator_ptr = 0;
-    if (creator_xuid_ptr) {
-      *creator_xuid_ptr = 0;
+    if (content_data.content_type == 1) {
+      // User always creates saves.
+      *is_creator_ptr = 1;
+      if (creator_xuid_ptr) {
+        *creator_xuid_ptr = user_profile->xuid();
+      }
+    } else {
+      *is_creator_ptr = 0;
+      if (creator_xuid_ptr) {
+        *creator_xuid_ptr = 0;
+      }
     }
   }
-
   if (overlapped_ptr) {
     kernel_state()->CompleteOverlappedImmediate(overlapped_ptr, result);
     return X_ERROR_IO_PENDING;
