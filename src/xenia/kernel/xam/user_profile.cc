@@ -595,11 +595,14 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
     title_info.last_played = Clock::QueryHostSystemTime();
 
     // Copy cheevos from SPA -> GPD
-    auto& title_gpd = dash_gpd_;
-    if (title_data.title_id != kDashboardID) {
-      title_gpd = xdbf::GpdFile(title_data.title_id);
+    auto new_gpd = xdbf::GpdFile(title_data.title_id);
+    auto title_gpd = &new_gpd;
+    if (title_data.title_id == kDashboardID) {
+      // we're loading dash - may as well update dash gpd
+      title_gpd = &dash_gpd_;
+    } else {
       for (auto ach : spa_achievements) {
-        title_gpd.UpdateAchievement(ach);
+        title_gpd->UpdateAchievement(ach);
 
         title_info.achievements_possible++;
         title_info.gamerscore_total += ach.gamerscore;
@@ -611,7 +614,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
       auto* image_entry = spa_data.GetEntry(
           static_cast<uint16_t>(xdbf::SpaSection::kImage), ach.image_id);
       if (image_entry) {
-        title_gpd.UpdateEntry(*image_entry);
+        title_gpd->UpdateEntry(*image_entry);
       }
     }
 
@@ -620,7 +623,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
         spa_data.GetEntry(static_cast<uint16_t>(xdbf::SpaSection::kImage),
                           static_cast<uint64_t>(xdbf::SpaID::Title));
     if (title_image) {
-      title_gpd.UpdateEntry(*title_image);
+      title_gpd->UpdateEntry(*title_image);
     }
 
     auto title_name = xe::to_wstring(spa_data.GetTitleName());
@@ -632,14 +635,12 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
       title_name_ent.data.resize((title_name.length() + 1) * 2);
       xe::copy_and_swap((wchar_t*)title_name_ent.data.data(),
                         title_name.c_str(), title_name.length());
-      title_gpd.UpdateEntry(title_name_ent);
+      title_gpd->UpdateEntry(title_name_ent);
     }
-
-    title_gpds_[title_data.title_id] = title_gpd;
 
     // Update dash GPD with title and write updated GPDs
     if (title_data.title_id != kDashboardID) {
-      title_gpds_[title_data.title_id] = title_gpd;
+      title_gpds_[title_data.title_id] = *title_gpd;
       if (title_included) {
         dash_gpd_.UpdateTitle(title_info);
       }
