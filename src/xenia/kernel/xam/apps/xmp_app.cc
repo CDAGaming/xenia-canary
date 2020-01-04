@@ -351,8 +351,16 @@ X_RESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
     }
     case 0x00070013: {
       assert_true(!buffer_length || buffer_length == 8);
+      if (!buffer) {
+        return X_E_INVALIDARG;
+      }
       uint32_t xmp_client = xe::load_and_swap<uint32_t>(buffer + 0);
       uint32_t storage_ptr = xe::load_and_swap<uint32_t>(buffer + 4);
+      if (!storage_ptr) {
+        // dash seems to call this with empty storage_ptr, XAM returns this
+        // error:
+        return X_E_INVALIDARG;
+      }
       uint32_t playlist_handle =
           xe::load_and_swap<uint32_t>(memory_->TranslateVirtual(storage_ptr));
       assert_true(xmp_client == 0x00000002);
