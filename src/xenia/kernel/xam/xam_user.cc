@@ -239,9 +239,6 @@ dword_result_t XamUserReadProfileSettings(
     actual_user_index = 0;
   }
 
-  // Title ID = 0 means us.
-  // 0xfffe07d1 = profile?
-
   const auto& user_profile = kernel_state()->user_profile(actual_user_index);
   if (!user_profile) {
     if (overlapped_ptr) {
@@ -250,6 +247,11 @@ dword_result_t XamUserReadProfileSettings(
       return X_ERROR_IO_PENDING;
     }
     return X_ERROR_NOT_FOUND;
+  }
+
+  auto gpd = user_profile->GetDashboardGpd();
+  if (title_id != kDashboardID) {
+    gpd = user_profile->GetTitleGpd(title_id);
   }
 
   // First call asks for size (fill buffer_size_ptr).
@@ -264,7 +266,15 @@ dword_result_t XamUserReadProfileSettings(
   for (uint32_t n = 0; n < setting_count; ++n) {
     auto setting_id = (xdbf::X_XDBF_SETTING_ID)(uint32_t)setting_ids[n];
     xdbf::Setting setting;
-    if (user_profile->GetDashboardGpd()->GetSetting(setting_id, &setting)) {
+    setting.id = setting_id;
+
+    auto this_gpd = gpd;
+    // TODO: should we really be doing this for every non-specific setting?
+    if (!setting.IsTitleSpecific()) {
+      this_gpd = user_profile->GetDashboardGpd();
+    }
+
+    if (this_gpd && this_gpd->GetSetting(setting_id, &setting)) {
       size_needed += (uint32_t)setting.extraData.size();
     } else {
       XELOGE("XamUserReadProfileSettings requested unimplemented setting %.8X",
@@ -293,13 +303,15 @@ dword_result_t XamUserReadProfileSettings(
   for (uint32_t n = 0; n < setting_count; ++n) {
     auto setting_id = (xdbf::X_XDBF_SETTING_ID)(uint32_t)setting_ids[n];
     xdbf::Setting setting;
+    setting.id = setting_id;
 
-    auto gpd = user_profile->GetDashboardGpd();
-    if (title_id != 0xFFFE07D1) {
-      gpd = user_profile->GetTitleGpd(title_id);
+    auto this_gpd = gpd;
+    // TODO: should we really be doing this for every non-specific setting?
+    if (!setting.IsTitleSpecific()) {
+      this_gpd = user_profile->GetDashboardGpd();
     }
 
-    bool exists = gpd && gpd->GetSetting(setting_id, &setting);
+    bool exists = this_gpd && this_gpd->GetSetting(setting_id, &setting);
 
     // TODO: fix this setting causing dash.xex to crash
     // (probably makes it call into avatar code)
@@ -390,7 +402,7 @@ dword_result_t XamUserWriteProfileSettings(
   }
 
   auto gpd = user_profile->GetDashboardGpd();
-  if (title_id != 0xFFFE07D1) {
+  if (title_id != kDashboardID) {
     gpd = user_profile->GetTitleGpd(title_id);
   }
 
@@ -417,8 +429,14 @@ dword_result_t XamUserWriteProfileSettings(
     setting.id = settings_data.setting.setting_id;
     setting.value.type = settings_data.setting.value.type;
 
+    auto this_gpd = gpd;
+    // TODO: should we really be doing this for every non-specific setting?
+    if (!setting.IsTitleSpecific()) {
+      this_gpd = user_profile->GetDashboardGpd();
+    }
+
     // Retrieve any existing setting data if we can
-    gpd->GetSetting(setting.id, &setting);
+    this_gpd->GetSetting(setting.id, &setting);
 
     // ... and then overwrite it
     memcpy(&setting.value, &settings_data.setting.value,
@@ -443,7 +461,7 @@ dword_result_t XamUserWriteProfileSettings(
       }
     }
 
-    gpd->UpdateSetting(setting);
+    this_gpd->UpdateSetting(setting);
   }
 
   user_profile->UpdateAllGpds();
