@@ -866,6 +866,9 @@ xam::UserProfile* KernelState::user_profile(uint32_t user_index,
   }
 
   auto user = &user_profiles_[user_index];
+  if (!user->get()) {
+    return nullptr;
+  }
   if (!allow_signed_out) {
     if (!user->get()->signed_in()) {
       return nullptr;
