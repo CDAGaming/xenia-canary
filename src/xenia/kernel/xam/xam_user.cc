@@ -287,7 +287,6 @@ dword_result_t XamUserReadProfileSettings(
     if (overlapped_ptr) {
       kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                   X_ERROR_INSUFFICIENT_BUFFER);
-      return X_ERROR_IO_PENDING;
     }
     return X_ERROR_INSUFFICIENT_BUFFER;
   }
