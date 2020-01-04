@@ -225,8 +225,12 @@ dword_result_t XamUserReadProfileSettings(
     dword_t title_id, dword_t user_index, dword_t num_xuids, lpqword_t xuids,
     dword_t setting_count, lpdword_t setting_ids, lpdword_t buffer_size_ptr,
     lpvoid_t buffer_ptr, dword_t overlapped_ptr) {
-  uint32_t buffer_size =
-      !buffer_size_ptr ? 0u : static_cast<uint32_t>(*buffer_size_ptr);
+  if (!setting_count || setting_count > 0x20 || !setting_ids ||
+      !buffer_size_ptr) {
+    assert_always();
+    // XAM doesn't seem to set the overlapped error here
+    return X_ERROR_INVALID_PARAMETER;
+  }
 
   uint64_t xuid = 0;
   if (num_xuids && xuids) {
@@ -244,7 +248,6 @@ dword_result_t XamUserReadProfileSettings(
     if (overlapped_ptr) {
       kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                   X_ERROR_NOT_FOUND);
-      return X_ERROR_IO_PENDING;
     }
     return X_ERROR_NOT_FOUND;
   }
@@ -282,7 +285,9 @@ dword_result_t XamUserReadProfileSettings(
     }
   }
 
+  uint32_t buffer_size = static_cast<uint32_t>(*buffer_size_ptr);
   *buffer_size_ptr = size_needed;
+
   if (!buffer_ptr || buffer_size < size_needed) {
     if (overlapped_ptr) {
       kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
@@ -381,11 +386,8 @@ dword_result_t XamUserWriteProfileSettings(
     dword_t title_id, dword_t user_index, dword_t setting_count,
     pointer_t<X_USER_WRITE_PROFILE_SETTING> settings, dword_t overlapped_ptr) {
   if (!setting_count || !settings) {
-    if (overlapped_ptr) {
-      kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
-                                                  X_ERROR_INVALID_PARAMETER);
-      return X_ERROR_IO_PENDING;
-    }
+    assert_always();
+    // XAM doesn't seem to set the overlapped error here
     return X_ERROR_INVALID_PARAMETER;
   }
 
@@ -395,7 +397,6 @@ dword_result_t XamUserWriteProfileSettings(
     if (overlapped_ptr) {
       kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                   X_ERROR_NOT_FOUND);
-      return X_ERROR_IO_PENDING;
     }
     return X_ERROR_NOT_FOUND;
   }
@@ -410,7 +411,6 @@ dword_result_t XamUserWriteProfileSettings(
     if (overlapped_ptr) {
       kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                   X_ERROR_INVALID_PARAMETER);
-      return X_ERROR_IO_PENDING;
     }
     return X_ERROR_INVALID_PARAMETER;
   }
