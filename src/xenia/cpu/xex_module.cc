@@ -215,6 +215,16 @@ int XexModule::ApplyPatch(XexModule* module) {
   s.finalize(digest);
 
   if (memcmp(digest, patch_header->digest_source, 0x14) != 0) {
+    // If the signature check failed, check against the MediaID
+    // (we can forgive signature not matching)
+    // we won't check MediaID if the sig matches though, since it might not be
+    // that reliable?
+    if (memcmp(xex_security_info()->xgd2_media_id,
+               module->xex_security_info()->xgd2_media_id, 0x10) != 0) {
+      XELOGE("Patch MediaID doesn't match base XEX MediaID, aborting patch");
+      return 1;
+    }
+
     XELOGW(
         "XEX patch signature hash doesn't match base XEX signature hash, patch "
         "will likely fail!");
