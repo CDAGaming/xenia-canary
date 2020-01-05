@@ -217,6 +217,7 @@ class StfsContainerDevice : public Device {
 
   Error ReadSTFS();
   size_t BlockToOffsetSTFS(uint64_t block);
+  size_t BlockToOffsetSTFS_Old(uint64_t block);
 
   BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index,
                          uint32_t table_offset);
@@ -231,6 +232,8 @@ class StfsContainerDevice : public Device {
   StfsPackageType package_type_;
   StfsHeader header_;
   uint32_t table_size_shift_;
+
+  bool use_old_algorithm_ = false;
 };
 
 }  // namespace vfs
