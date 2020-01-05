@@ -766,11 +766,6 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
     size_t data_len = 0;
     std::unique_ptr<MappedMemory> mmap;
 
-    auto user_profile = kernel_state()->user_profile(user_index);
-    if (!user_profile) {
-      return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
-    }
-
     if (!output_ptr || !buffer_size_ptr) {
       return X_ERROR_FILE_NOT_FOUND;
     }
@@ -778,6 +773,11 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
     auto type = (XTileType)tile_type.value();
     if (kTileFileNames.count(type)) {
       // image_id = XUID of profile to retrieve from
+
+      auto user_profile = kernel_state()->user_profile(image_id);
+      if (!user_profile) {
+        return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
+      }
 
       auto file_path = user_profile->path();
       file_path += kTileFileNames.at(type);
@@ -789,6 +789,11 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
       data = mmap->data();
       data_len = mmap->size();
     } else {
+      auto user_profile = kernel_state()->user_profile(user_index);
+      if (!user_profile) {
+        return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
+      }
+
       auto gpd = user_profile->GetTitleGpd(game_id.value());
 
       if (!gpd) {
