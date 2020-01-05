@@ -611,8 +611,7 @@ size_t StfsContainerDevice::BlockToOffsetSTFS(uint64_t block_index) {
   }
 
   uint32_t num_tables = 1;  // num hashtables per block? or maybe backingblocks?
-  if (((header_.header_size + 0xFFF) & 0xB000) == 0xB000 ||
-      (header_.stfs_volume_descriptor.flags & 0x1) == 0x0) {
+  if ((header_.stfs_volume_descriptor.flags & 0x1) == 0x0) {
     num_tables++;
   }
 
