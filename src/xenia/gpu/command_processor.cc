@@ -260,6 +260,9 @@ void CommandProcessor::InitializeRingBuffer(uint32_t ptr, uint32_t log2_size) {
   read_ptr_index_ = 0;
   primary_buffer_ptr_ = ptr;
   primary_buffer_size_ = 1 << log2_size;
+
+  std::memset(kernel_state_->memory()->TranslatePhysical(primary_buffer_ptr_),
+              0x00, primary_buffer_size_);
 }
 
 void CommandProcessor::EnableReadPointerWriteBack(uint32_t ptr,
