@@ -881,6 +881,31 @@ dword_result_t XamUserGetIndexFromXUID(qword_t xuid, dword_t r4,
 }
 DECLARE_XAM_EXPORT1(XamUserGetIndexFromXUID, kUserProfiles, kStub);
 
+dword_result_t XamProfileCreate(dword_t flags, lpdword_t device_id,
+                                qword_t xuid,
+                                pointer_t<X_XAMACCOUNTINFO> account, dword_t r7,
+                                dword_t r8, dword_t r9, dword_t r10) {
+  *device_id = 0xF00D0000;
+
+  X_XAMACCOUNTINFO swapped;
+  memcpy(&swapped, account, sizeof(X_XAMACCOUNTINFO));
+  xe::copy_and_swap<wchar_t>(swapped.gamertag, swapped.gamertag, 16);
+
+  if (xuid != 0) {
+    // Why is this param even included?
+    return X_E_INVALIDARG;
+  }
+
+  xam::UserProfile profile(kernel_state());
+  profile.Create(&swapped, false);
+  auto new_xuid = profile.xuid_offline();
+
+  // TODO: r10 seems to be some kind of output?
+
+  return X_ERROR_SUCCESS;
+}
+DECLARE_XAM_EXPORT1(XamProfileCreate, kUserProfiles, kStub);
+
 }  // namespace xdbf
 }  // namespace xam
 }  // namespace kernel

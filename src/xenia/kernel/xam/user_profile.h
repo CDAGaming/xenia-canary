@@ -216,6 +216,7 @@ class UserProfile {
   // If no profiles are available, will use a Xenia-generated one
   bool Login(uint64_t offline_xuid = 0);
   void Logout();
+  bool Create(X_XAMACCOUNTINFO* account, bool generate_gamertag = false);
 
  private:
   // Extracts profile package if needed - returns path to extracted folder

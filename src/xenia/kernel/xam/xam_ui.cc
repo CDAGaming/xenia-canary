@@ -490,6 +490,54 @@ void XamShowDirtyDiscErrorUI(dword_t user_index) {
 }
 DECLARE_XAM_EXPORT1(XamShowDirtyDiscErrorUI, kUI, kImplemented);
 
+dword_result_t XamShowCreateProfileUI(dword_t user_index) {
+  auto user = kernel_state()->user_profile(user_index, true);
+  if (!user) {
+    return X_ERROR_ACCESS_DENIED;  // xam returns this when errors?
+  }
+
+  // Broadcast XN_SYS_UI = true
+  kernel_state()->BroadcastNotification(0x9, true);
+
+  xe::threading::Fence fence;
+  std::wstring out_text;
+
+  ++xam_dialogs_shown_;
+
+  auto display_window = kernel_state()->emulator()->display_window();
+  display_window->loop()->PostSynchronous([&]() {
+    // Create the dialog
+    (new KeyboardInputDialog(display_window, L"Profile Creation",
+                             L"Choose a gamertag", L"", &out_text, 15))
+        ->Then(&fence);
+  });
+
+  fence.Wait();
+
+  --xam_dialogs_shown_;
+
+  // Broadcast XN_SYS_UI = true
+  kernel_state()->BroadcastNotification(0x9, false);
+
+  X_XAMACCOUNTINFO account;
+  memset(&account, 0, sizeof(X_XAMACCOUNTINFO));
+  memcpy(account.gamertag, out_text.c_str(),
+         std::min((uint32_t)out_text.size(), 15u) * sizeof(wchar_t));
+
+  user->Logout();
+  user->Create(&account, false);
+
+  // TODO: the following does seem to trigger dash and make it try reloading the
+  // profile, but some reason it won't load properly until restart (no
+  // gamertag/gamerscore/games shown, etc)
+  // maybe need to set some notification for it or something?
+  user->Login(user->xuid_offline());
+  user->signin_state(1);
+
+  return X_ERROR_SUCCESS;
+}
+DECLARE_XAM_EXPORT1(XamShowCreateProfileUI, kUI, kImplemented);
+
 void RegisterUIExports(xe::cpu::ExportResolver* export_resolver,
                        KernelState* kernel_state) {}
 

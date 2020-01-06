@@ -286,6 +286,53 @@ std::wstring UserProfile::ExtractProfile(const std::wstring& path) {
   return package + L"\\";
 }
 
+bool UserProfile::Create(X_XAMACCOUNTINFO* account, bool generate_gamertag) {
+  // TODO: check for any existing profile with the same account->gamertag!
+
+  static int num_xuids = 0;  // TODO: we really should save this between runs
+  // Create some unique IDs for the profile
+  xuid_offline_ = 0xE0000000BEEFCAFE + num_xuids;
+  account->xuid_online = 0x09000000BEEFCAFE + num_xuids;
+  if (generate_gamertag) {
+    swprintf_s(account->gamertag, L"XeniaUser%d", num_xuids);
+  }
+  num_xuids++;
+
+  profile_path_ = path(xuid_offline_);
+  profile_path_ = ExtractProfile(profile_path_);
+
+  memcpy(&account_, account, sizeof(X_XAMACCOUNTINFO));
+
+  if (!filesystem::PathExists(profile_path_)) {
+    // Profile path doesn't exist - create new profile!
+    if (!filesystem::CreateFolder(profile_path_)) {
+      XELOGE("UserProfile::Create: Failed to create profile for '%S' at %S!",
+             account->gamertag, path().c_str());
+      return false;
+    } else {
+      // Write out an account file
+      filesystem::CreateFile(
+          path() + L"Account");  // MappedMemory needs an existing file...
+      auto mmap_ = MappedMemory::Open(path() + L"Account",
+                                      MappedMemory::Mode::kReadWrite, 0,
+                                      sizeof(X_XAMACCOUNTINFO) + 0x18);
+      if (!mmap_) {
+        XELOGE("UserProfile::Create: Failed to create new Account at %S!",
+               path().c_str());
+        return false;
+      } else {
+        XELOGI("Writing Account file for '%S' to path %SAccount",
+               account->gamertag, path().c_str());
+        EncryptAccountFile(account, mmap_->data(), false);
+        mmap_->Close();
+      }
+
+      // Dash GPD will be updated below, after default settings are added
+    }
+  }
+  return true;
+}
+
 bool UserProfile::Login(uint64_t offline_xuid) {
   xuid_offline_ = offline_xuid;
   auto profile_path = path(xuid_offline_);
@@ -308,12 +355,9 @@ bool UserProfile::Login(uint64_t offline_xuid) {
         "using temp. profile");
 
     memset(&account_, 0, sizeof(X_XAMACCOUNTINFO));
-    // Create some unique IDs for the profile
-    static int num_xuids = 0;
-    xuid_offline_ = 0xE0000000BEEFCAFE + num_xuids;
-    account_.xuid_online = 0x09000000BEEFCAFE + num_xuids;
-    swprintf_s(account_.gamertag, L"XeniaUser%d", num_xuids);
-    num_xuids++;
+    if (!Create(&account_, true)) {
+      return false;
+    }
     profile_path = path(xuid_offline_);
   }
 
@@ -325,31 +369,7 @@ bool UserProfile::Login(uint64_t offline_xuid) {
     return false;
   }
 
-  if (!filesystem::PathExists(profile_path_)) {
-    // Profile path doesn't exist - create new profile!
-    if (!filesystem::CreateFolder(profile_path_)) {
-      XELOGE("UserProfile::Login: Failed to create profile for '%S' at %S!",
-             account_.gamertag, path().c_str());
-    } else {
-      // Write out an account file
-      filesystem::CreateFile(
-          path() + L"Account");  // MappedMemory needs an existing file...
-      auto mmap_ = MappedMemory::Open(path() + L"Account",
-                                      MappedMemory::Mode::kReadWrite, 0,
-                                      sizeof(X_XAMACCOUNTINFO) + 0x18);
-      if (!mmap_) {
-        XELOGE("UserProfile::Login: Failed to create new Account at %S!",
-               path().c_str());
-      } else {
-        XELOGI("Writing Account file for '%S' to path %SAccount",
-               account_.gamertag, path().c_str());
-        EncryptAccountFile(&account_, mmap_->data(), false);
-        mmap_->Close();
-      }
-
-      // Dash GPD will be updated below, after default settings are added
-    }
-  } else {
+  if (filesystem::PathExists(profile_path_)) {
     // Profile exists, load Account and any GPDs
     auto mmap_ =
         MappedMemory::Open(path() + L"Account", MappedMemory::Mode::kRead);
