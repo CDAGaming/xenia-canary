@@ -14,16 +14,6 @@
 
 #include "xenia/base/byte_order.h"
 
-union xe_xex2_version_t {
-  uint32_t value;
-  struct {
-    uint32_t major : 4;
-    uint32_t minor : 4;
-    uint32_t build : 16;
-    uint32_t qfe : 8;
-  };
-};
-
 enum xe_pe_section_flags_e : uint32_t {
   kXEPESectionContainsCode = 0x00000020,
   kXEPESectionContainsDataInit = 0x00000040,
@@ -371,14 +361,13 @@ struct xex2_opt_file_format_info {
   } compression_info;
 };
 
-union xex2_version {
+struct xex2_version {
   xe::be<uint32_t> value;
-  struct {
-    uint32_t major : 4;
-    uint32_t minor : 4;
-    uint32_t build : 16;
-    uint32_t qfe : 8;
-  };
+
+  uint32_t qfe() const { return value & 0xFF; }
+  uint32_t build() const { return (value >> 8) & 0xFFFF; }
+  uint32_t minor() const { return (value >> 24) & 0xF; }
+  uint32_t major() const { return (value >> 28) & 0xF; }
 };
 
 struct xex2_opt_lan_key {
@@ -462,8 +451,8 @@ struct xex2_opt_delta_patch_descriptor {
 
 struct xex2_opt_execution_info {
   xe::be<uint32_t> media_id;          // 0x0
-  xe::be<xex2_version> version;       // 0x4
-  xe::be<xex2_version> base_version;  // 0x8
+  xex2_version version;               // 0x4
+  xex2_version base_version;          // 0x8
   xe::be<uint32_t> title_id;          // 0xC
   uint8_t platform;                   // 0x10
   uint8_t executable_table;           // 0x11

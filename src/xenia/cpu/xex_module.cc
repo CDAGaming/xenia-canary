@@ -447,19 +447,15 @@ int XexModule::ApplyPatch(XexModule* module) {
       }
     }
 
-    // byteswap versions because of bitfields...
-    xex2_version source_ver, target_ver;
-    source_ver.value =
-        xe::byte_swap<uint32_t>(patch_header->source_version.value);
-
-    target_ver.value =
-        xe::byte_swap<uint32_t>(patch_header->target_version.value);
+    auto& source_ver = patch_header->source_version;
+    auto& target_ver = patch_header->target_version;
 
     XELOGI(
         "XEX patch applied successfully: base version: %d.%d.%d.%d, new "
         "version: %d.%d.%d.%d",
-        source_ver.major, source_ver.minor, source_ver.build, source_ver.qfe,
-        target_ver.major, target_ver.minor, target_ver.build, target_ver.qfe);
+        source_ver.major(), source_ver.minor(), source_ver.build(),
+        source_ver.qfe(), target_ver.major(), target_ver.minor(),
+        target_ver.build(), target_ver.qfe());
   } else {
     XELOGE("XEX patch application failed, error code %d", result_code);
   }

@@ -39,8 +39,8 @@ class XexModule : public xe::cpu::Module {
    public:
     std::string name;
     uint32_t id;
-    xe_xex2_version_t version;
-    xe_xex2_version_t min_version;
+    xex2_version version;
+    xex2_version min_version;
     std::vector<ImportLibraryFn> imports;
   };
   struct SecurityInfoContext {
