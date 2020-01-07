@@ -627,6 +627,20 @@ void UserModule::Dump() {
 
         sb.AppendFormat("       Media ID: %.8X\n",
                         static_cast<uint32_t>(opt_exec_info->media_id));
+
+        auto& version = opt_exec_info->version;
+        auto& version_base = opt_exec_info->base_version;
+        if (version.value != version_base.value) {
+          sb.AppendFormat("        Version: %d.%d.%d.%d (base %d.%d.%d.%d)\n",
+                          version.major(), version.minor(), version.build(),
+                          version.qfe(), version_base.major(),
+                          version_base.minor(), version_base.build(),
+                          version_base.qfe());
+        } else {
+          sb.AppendFormat("        Version: %d.%d.%d.%d\n", version.major(),
+                          version.minor(), version.build(), version.qfe());
+        }
+
         sb.AppendFormat("       Title ID: %.8X\n",
                         static_cast<uint32_t>(opt_exec_info->title_id));
         sb.AppendFormat("    Savegame ID: %.8X\n",
