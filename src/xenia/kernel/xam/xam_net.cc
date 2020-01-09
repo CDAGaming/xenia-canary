@@ -23,8 +23,6 @@
 #include "xenia/kernel/xthread.h"
 #include "xenia/xbox.h"
 
-DEFINE_bool(no_net_WSA, true,
-            "Shut down more of the networking if a game is spamming net functions.", "Kernel");
 
 #ifdef XE_PLATFORM_WIN32
 // NOTE: must be included last as it expects windows.h to already be included.
@@ -228,10 +226,6 @@ DECLARE_XAM_EXPORT1(NetDll_XNetRandom, kNetworking, kStub);
 
 dword_result_t NetDll_WSAStartup(dword_t caller, word_t version,
                                  pointer_t<X_WSADATA> data_ptr) {
-  if (cvars::no_net_WSA) {
-    // to shutdown WSA return winsock failed to init(not enough mem)
-    return WSAENOBUFS;
-  }
 
 // TODO(benvanik): abstraction layer needed.
 #ifdef XE_PLATFORM_WIN32
