@@ -254,7 +254,7 @@ dword_result_t XamUserReadProfileSettings(
 
   auto gpd = user_profile->GetDashboardGpd();
   if (title_id != kDashboardID) {
-    gpd = user_profile->GetTitleGpd(title_id);
+    gpd = user_profile->GetTitleGpd(!title_id ? kernel_state()->title_id() : title_id);
   }
 
   // First call asks for size (fill buffer_size_ptr).
@@ -403,7 +403,8 @@ dword_result_t XamUserWriteProfileSettings(
 
   auto gpd = user_profile->GetDashboardGpd();
   if (title_id != kDashboardID) {
-    gpd = user_profile->GetTitleGpd(title_id);
+    gpd = user_profile->GetTitleGpd(!title_id ? kernel_state()->title_id()
+                                              : title_id);
   }
 
   if (!gpd) {
@@ -605,7 +606,9 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
   *handle_ptr = e->handle();
 
   // Copy achievements into the enumerator if game GPD is loaded
-  auto* game_gpd = user_profile->GetTitleGpd(title_id);
+  auto* game_gpd = user_profile->GetTitleGpd(
+      !title_id ? kernel_state()->title_id() : title_id);
+
   if (!game_gpd) {
     XELOGE(
         "XamUserCreateAchievementEnumerator failed to find GPD for title %X!",
