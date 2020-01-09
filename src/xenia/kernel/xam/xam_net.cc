@@ -11,6 +11,7 @@
 
 #include "xenia/base/clock.h"
 #include "xenia/base/logging.h"
+#include "xenia/base/cvar.h"
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/util/shim_utils.h"
 #include "xenia/kernel/xam/xam_module.h"
@@ -21,6 +22,9 @@
 #include "xenia/kernel/xsocket.h"
 #include "xenia/kernel/xthread.h"
 #include "xenia/xbox.h"
+
+DEFINE_bool(no_net_WSA, true,
+            "Shut down more of the networking if a game is spamming net functions.", "Kernel");
 
 #ifdef XE_PLATFORM_WIN32
 // NOTE: must be included last as it expects windows.h to already be included.
@@ -150,8 +154,16 @@ struct XNetStartupParams {
 
 XNetStartupParams xnet_startup_params = {0};
 
+int_result_t NetDll_XHttpStartup(dword_t unknown1, dword_t unknown2)
+{
+  // TODO: implement, but return 0 (fail) for now, 1 = success
+  return 0;
+}
+DECLARE_XAM_EXPORT1(NetDll_XHttpStartup, kNetworking, kStub);
+
 dword_result_t NetDll_XNetStartup(dword_t caller,
                                   pointer_t<XNetStartupParams> params) {
+    
   if (params) {
     assert_true(params->cfgSizeOfStruct == sizeof(XNetStartupParams));
     std::memcpy(&xnet_startup_params, params, sizeof(XNetStartupParams));
@@ -168,7 +180,9 @@ dword_result_t NetDll_XNetStartup(dword_t caller,
   }
   */
 
+  // success?
   return 0;
+
 }
 DECLARE_XAM_EXPORT1(NetDll_XNetStartup, kNetworking, kImplemented);
 
@@ -214,6 +228,11 @@ DECLARE_XAM_EXPORT1(NetDll_XNetRandom, kNetworking, kStub);
 
 dword_result_t NetDll_WSAStartup(dword_t caller, word_t version,
                                  pointer_t<X_WSADATA> data_ptr) {
+  if (cvars::no_net_WSA) {
+    // to shutdown WSA return winsock failed to init(not enough mem)
+    return WSAENOBUFS;
+  }
+
 // TODO(benvanik): abstraction layer needed.
 #ifdef XE_PLATFORM_WIN32
   WSADATA wsaData;
