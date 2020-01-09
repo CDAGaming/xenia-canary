@@ -488,6 +488,15 @@ template <typename Tuple>
 void PrintKernelCall(cpu::Export* export_entry, const Tuple& params) {
   auto& string_buffer = *thread_local_string_buffer();
   string_buffer.Reset();
+
+  if (export_entry->tags & xe::cpu::ExportTag::kStub) {
+    string_buffer.Append("[STUB] ");
+  }
+
+  if (export_entry->tags & xe::cpu::ExportTag::kSketchy) {
+    string_buffer.Append("[SKETCHY] ");
+  }
+
   string_buffer.Append(export_entry->name);
   string_buffer.Append('(');
   AppendKernelCallParams(string_buffer, export_entry, params);
