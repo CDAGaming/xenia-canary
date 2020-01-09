@@ -20,7 +20,7 @@ namespace apps {
 XmpApp::XmpApp(KernelState* kernel_state)
     : App(kernel_state, 0xFA),
       state_(State::kIdle),
-      disabled_(0),
+      disabled_(1),
       playback_mode_(PlaybackMode::kUnknown),
       repeat_mode_(RepeatMode::kUnknown),
       unknown_flags_(0),
@@ -38,7 +38,7 @@ X_RESULT XmpApp::XMPGetStatus(uint32_t state_ptr) {
   XELOGD("XMPGetStatus(%.8X)", state_ptr);
   xe::store_and_swap<uint32_t>(memory_->TranslateVirtual(state_ptr),
                                static_cast<uint32_t>(state_));
-  return X_ERROR_SUCCESS;
+  return X_ERROR_ACCESS_DENIED;
 }
 
 X_RESULT XmpApp::XMPCreateTitlePlaylist(uint32_t songs_ptr, uint32_t song_count,
@@ -206,6 +206,9 @@ void XmpApp::OnStateChanged() {
 
 X_RESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
                                      uint32_t buffer_length) {
+  // Some stupid games will hammer this on a thread - induce a delay
+  // here to keep from starving real threads.
+  xe::threading::Sleep(std::chrono::milliseconds(1));
   // NOTE: buffer_length may be zero or valid.
   auto buffer = memory_->TranslateVirtual(buffer_ptr);
   switch (message) {
@@ -398,7 +401,7 @@ X_RESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
                                    0);
 
       // Atrain spawns a thread 82437FD0 to call this in a tight loop forever.
-      xe::threading::Sleep(std::chrono::milliseconds(10));
+      // xe::threading::Sleep(std::chrono::milliseconds(10));
       return X_ERROR_SUCCESS;
     }
     case 0x00070029: {
