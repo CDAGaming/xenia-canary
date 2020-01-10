@@ -589,9 +589,15 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
                                                   dword_t offset, dword_t count,
                                                   lpdword_t buffer_size_ptr,
                                                   lpdword_t handle_ptr) {
+  if (!count || !buffer_size_ptr || !handle_ptr) {
+    // TODO: this should also happen if user_index >= 4, but dash seems to use
+    // 0xFF for some reason.. maybe a problem with some other piece of code?
+    return X_ERROR_INVALID_PARAMETER;
+  }
+
   auto user_profile = kernel_state()->user_profile(user_index);
   if (!user_profile) {
-    return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
+    return X_ERROR_FUNCTION_FAILED;  // TODO: proper error code!
   }
 
   if (buffer_size_ptr) {
@@ -610,11 +616,14 @@ dword_result_t XamUserCreateAchievementEnumerator(dword_t title_id,
     XELOGE(
         "XamUserCreateAchievementEnumerator failed to find GPD for title %X!",
         title_id);
-    return X_ERROR_SUCCESS;
+    return X_ERROR_FUNCTION_FAILED;
   }
 
   std::vector<xdbf::Achievement> achievements;
   game_gpd->GetAchievements(&achievements);
+
+  // TODO: sort by achieved date, and so achieved come before unachieved
+  // (maybe only if flags == -1?)
 
   for (auto ach : achievements) {
     auto* details = (X_XACHIEVEMENT_DETAILS*)e->AppendItem();
@@ -776,7 +785,7 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
 
       auto user_profile = kernel_state()->user_profile(image_id);
       if (!user_profile) {
-        return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
+        return X_ERROR_FILE_NOT_FOUND;  // TODO: proper error code!
       }
 
       auto file_path = user_profile->path();
@@ -791,7 +800,7 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
     } else {
       auto user_profile = kernel_state()->user_profile(user_index);
       if (!user_profile) {
-        return X_ERROR_INVALID_PARAMETER;  // TODO: proper error code!
+        return X_ERROR_FILE_NOT_FOUND;  // TODO: proper error code!
       }
 
       auto gpd = user_profile->GetTitleGpd(game_id.value());
@@ -818,7 +827,7 @@ dword_result_t XamReadTile(dword_t tile_type, dword_t game_id, qword_t item_id,
     auto passed_size = *buffer_size_ptr;
     *buffer_size_ptr = (uint32_t)data_len;
 
-    auto ret_val = X_ERROR_INVALID_PARAMETER;
+    auto ret_val = X_ERROR_INSUFFICIENT_BUFFER;
 
     if (passed_size >= *buffer_size_ptr) {
       memcpy_s(output_ptr, *buffer_size_ptr, data, data_len);
