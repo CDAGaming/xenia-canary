@@ -885,7 +885,7 @@ dword_result_t XamProfileCreate(dword_t flags, lpdword_t device_id,
                                 qword_t xuid,
                                 pointer_t<X_XAMACCOUNTINFO> account, dword_t r7,
                                 dword_t r8, dword_t r9, dword_t r10) {
-  *device_id = 0xF00D0000;
+  *device_id = 0x00000001;
 
   X_XAMACCOUNTINFO swapped;
   memcpy(&swapped, account, sizeof(X_XAMACCOUNTINFO));

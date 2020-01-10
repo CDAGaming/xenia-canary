@@ -409,23 +409,8 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
     XELOGW("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
            content_type, device_id_ptr, (bool)overlapped);
 
-    // NOTE: 0xF00D0000 magic from xam_content.cc
-    switch (content_type) {
-      case 1:  // save game
-        *device_id_ptr = 0x00000001 | 0x0001;
-        break;
-      case 2:  // marketplace
-        *device_id_ptr = 0x00000001 | 0x0002;
-        break;
-      case 3:  // title/publisher update?
-        *device_id_ptr = 0x00000001 | 0x0003;
-        break;
-      default:
-        XELOGW("XamShowDeviceSelectorUI Unhandled Content_type:(%X)", content_type);
-        assert_unhandled_case(content_type);
-        *device_id_ptr = 0x00000001 | 0x0001;
-        break;
-    }
+    // NOTE: 0x00000001 is our dummy device ID from xam_content.cc
+    *device_id_ptr = 0x00000001;
 
     xe::threading::Sleep(std::chrono::milliseconds(500));
 
