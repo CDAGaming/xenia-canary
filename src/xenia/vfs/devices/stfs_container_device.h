@@ -183,6 +183,10 @@ class StfsContainerDevice : public Device {
   uint32_t sectors_per_allocation_unit() const override { return 1; }
   uint32_t bytes_per_sector() const override { return 4 * 1024; }
 
+  bool read_only_package() {
+    return (header_.stfs_volume_descriptor.flags & 1) != 0;
+  }
+
   StfsHeader& header() { return header_; }
 
   uint32_t ExtractToFolder(const std::wstring& dest_path);
@@ -219,8 +223,16 @@ class StfsContainerDevice : public Device {
   size_t BlockToOffsetSTFS(uint64_t block);
   size_t BlockToOffsetSTFS_Old(uint64_t block);
 
-  BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index,
-                         uint32_t table_offset);
+  size_t BackingBlockToOffsetSTFS(uint64_t backing_block);
+
+  size_t BlockToHashBlockOffset(uint64_t block, uint32_t hash_level = 0);
+
+  StfsContainerDevice::BlockHash GetHashEntry(const uint8_t* map_ptr,
+                                              uint32_t block_index,
+                                              uint32_t level,
+                                              uint32_t table_offset);
+
+  BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index);
 
   std::wstring local_path_;
   std::map<size_t, std::unique_ptr<MappedMemory>> mmap_;
@@ -231,7 +243,6 @@ class StfsContainerDevice : public Device {
   std::unique_ptr<Entry> root_entry_;
   StfsPackageType package_type_;
   StfsHeader header_;
-  uint32_t table_size_shift_;
 
   bool use_old_algorithm_ = false;
 };

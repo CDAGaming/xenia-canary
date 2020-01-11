@@ -220,12 +220,6 @@ StfsContainerDevice::Error StfsContainerDevice::ReadHeaderAndVerify(
     return Error::kErrorDamagedFile;
   }
 
-  if (((header_.header_size + 0x0FFF) & 0xB000) == 0xB000) {
-    table_size_shift_ = 0;
-  } else {
-    table_size_shift_ = 1;
-  }
-
   return Error::kSuccess;
 }
 
@@ -563,16 +557,13 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
         uint32_t block_index = start_block_index;
         size_t remaining_size = file_size;
         uint32_t info = 0x80;
-        while (remaining_size && block_index && info >= 0x80) {
+        while (remaining_size && block_index) {
           size_t block_size =
               std::min(static_cast<size_t>(0x1000), remaining_size);
           size_t offset = BlockToOffsetSTFS(block_index);
           entry->block_list_.push_back({0, offset, block_size});
           remaining_size -= block_size;
-          auto block_hash = GetBlockHash(data, block_index, 0);
-          if (table_size_shift_ && block_hash.info < 0x80) {
-            block_hash = GetBlockHash(data, block_index, 1);
-          }
+          auto block_hash = GetBlockHash(data, block_index);
           block_index = block_hash.next_block_index;
           info = block_hash.info;
         }
@@ -581,14 +572,8 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
       parent_entry->children_.emplace_back(std::move(entry));
     }
 
-    auto block_hash = GetBlockHash(data, table_block_index, 0);
-    if (table_size_shift_ && block_hash.info < 0x80) {
-      block_hash = GetBlockHash(data, table_block_index, 1);
-    }
+    auto block_hash = GetBlockHash(data, table_block_index);
     table_block_index = block_hash.next_block_index;
-    if (table_block_index == 0xFFFFFF) {
-      break;
-    }
   }
 
   if (all_entries.size() > 0) {
@@ -611,7 +596,7 @@ size_t StfsContainerDevice::BlockToOffsetSTFS(uint64_t block_index) {
   }
 
   uint32_t num_tables = 1;  // num hashtables per block? or maybe backingblocks?
-  if ((header_.stfs_volume_descriptor.flags & 0x1) == 0x0) {
+  if (!read_only_package()) {
     num_tables++;
   }
 
@@ -623,7 +608,7 @@ size_t StfsContainerDevice::BlockToOffsetSTFS(uint64_t block_index) {
     }
   }
 
-  return xe::round_up(header_.header_size, 0x1000) + (dataBlock * 0x1000);
+  return BackingBlockToOffsetSTFS(dataBlock);
 }
 
 size_t StfsContainerDevice::BlockToOffsetSTFS_Old(uint64_t block_index) {
@@ -653,22 +638,96 @@ size_t StfsContainerDevice::BlockToOffsetSTFS_Old(uint64_t block_index) {
   return xe::round_up(header_.header_size, 0x1000) + (block << 12);
 }
 
-StfsContainerDevice::BlockHash StfsContainerDevice::GetBlockHash(
-    const uint8_t* map_ptr, uint32_t block_index, uint32_t table_offset) {
-  uint32_t record = block_index % 0xAA;
+size_t StfsContainerDevice::BackingBlockToOffsetSTFS(uint64_t backing_block) {
+  return xe::round_up(header_.header_size, 0x1000) + (backing_block * 0x1000);
+}
 
-  // This is a bit hacky, but we'll get a pointer to the first block after the
-  // table and then subtract one sector to land on the table itself.
-  size_t hash_offset = BlockToOffsetSTFS(
-      xe::round_up(block_index + 1, kSTFSHashSpacing) - kSTFSHashSpacing);
-  hash_offset -= bytes_per_sector();
+size_t StfsContainerDevice::BlockToHashBlockOffset(uint64_t block,
+                                                   uint32_t hash_level) {
+  uint32_t numTables = 1;
+  uint32_t blockStep0 = 0xAB;
+  uint32_t blockStep1 = 0x718F;
+  if (!read_only_package()) {
+    numTables = 2;
+    blockStep0 = 0xAC;
+    blockStep1 = 0x723A;
+  }
+
+  uint64_t backing_num = 0;
+  if (hash_level == 0) {
+    backing_num = (block / 0xAA) * blockStep0;
+    if (block / 0xAA == 0) {
+      return BackingBlockToOffsetSTFS(backing_num);
+    }
+
+    backing_num = backing_num + ((block / 0x70E4) + 1) * numTables;
+    if (block / 0x70E4 == 0) {
+      return BackingBlockToOffsetSTFS(backing_num);
+    }
+  } else if (hash_level == 1) {
+    backing_num = (block / 0x70E4) * blockStep1;
+    if (block / 0x70E4 == 0) {
+      return BackingBlockToOffsetSTFS(backing_num + blockStep0);
+    }
+  } else {
+    return BackingBlockToOffsetSTFS(blockStep0);
+  }
+  return BackingBlockToOffsetSTFS(backing_num + numTables);
+}
+
+StfsContainerDevice::BlockHash StfsContainerDevice::GetHashEntry(
+    const uint8_t* map_ptr, uint32_t block_index, uint32_t level,
+    uint32_t table_offset) {
+  uint32_t record = block_index;
+  if (level == 1) {
+    record = record / 0xAA;
+  }
+  if (level == 2) {
+    record = record / 0x70E4;
+  }
+  record = record % 0xAA;
+
+  size_t hash_offset = BlockToHashBlockOffset(block_index, level);
+  if (table_offset != 0) {
+    hash_offset += 0x1000;  // use alternate hash table?
+  }
+
   const uint8_t* hash_data = map_ptr + hash_offset;
 
-  // table_index += table_offset - (1 << table_size_shift_);
   const uint8_t* record_data = hash_data + record * 0x18;
   uint32_t info = xe::load_and_swap<uint8_t>(record_data + 0x14);
   uint32_t next_block_index = load_uint24_be(record_data + 0x15);
   return {next_block_index, info};
+}
+
+StfsContainerDevice::BlockHash StfsContainerDevice::GetBlockHash(
+    const uint8_t* map_ptr, uint32_t block_index) {
+  uint32_t table_offset = 0;
+  // Check RootActiveIndex flag - increment table_offset to use for root table
+  // if set
+  if (header_.stfs_volume_descriptor.flags & 2) {
+    table_offset = 1;
+  }
+
+  if (header_.stfs_volume_descriptor.total_allocated_block_count >= 0x70E4) {
+    // Get the L2 entry for the block
+    auto l2_entry = GetHashEntry(map_ptr, block_index, 2, table_offset);
+    table_offset = 0;
+    if (l2_entry.info & 0x40) {  // ActiveIndex flag
+      table_offset = 1;
+    }
+  }
+
+  if (header_.stfs_volume_descriptor.total_allocated_block_count >= 0xAA) {
+    // Get the L1 entry for this block
+    auto l1Entry = GetHashEntry(map_ptr, block_index, 1, table_offset);
+    table_offset = 0;
+    if (l1Entry.info & 0x40) {  // ActiveIndex flag
+      table_offset = 1;
+    }
+  }
+
+  return GetHashEntry(map_ptr, block_index, 0, table_offset);
 }
 
 bool StfsVolumeDescriptor::Read(const uint8_t* p) {
