@@ -915,6 +915,33 @@ dword_result_t XamProfileCreate(dword_t flags, lpdword_t device_id,
 }
 DECLARE_XAM_EXPORT1(XamProfileCreate, kUserProfiles, kStub);
 
+#pragma pack(push, 1)
+struct X_USER_INFO {
+  xe::be<uint64_t> xuid;
+  char name[16];
+  xe::be<uint32_t> user_index;
+  xe::be<uint32_t> unk;
+  xe::be<uint32_t> title_id;
+  xe::be<uint32_t> unk2;
+  xe::be<uint32_t> unk3;
+};
+static_assert_size(X_USER_INFO, 44);
+
+typedef struct {
+  xe::be<uint32_t> user_count;
+  X_USER_INFO users_info[7];
+} X_USER_PARTY_LIST;
+static_assert_size(X_USER_PARTY_LIST, 4+sizeof(X_USER_INFO)*7);
+#pragma pack(pop)
+
+dword_result_t XamPartyGetUserListInternal(
+    pointer_t<X_USER_PARTY_LIST> party_struct_ptr) {
+
+  party_struct_ptr->user_count = 0;
+  return X_ERROR_SUCCESS;
+}
+DECLARE_XAM_EXPORT1(XamPartyGetUserListInternal, kUserProfiles, kStub);
+
 }  // namespace xdbf
 }  // namespace xam
 }  // namespace kernel
