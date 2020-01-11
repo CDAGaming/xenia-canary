@@ -227,10 +227,8 @@ class StfsContainerDevice : public Device {
 
   size_t BlockToHashBlockOffset(uint64_t block, uint32_t hash_level = 0);
 
-  StfsContainerDevice::BlockHash GetHashEntry(const uint8_t* map_ptr,
-                                              uint32_t block_index,
-                                              uint32_t level,
-                                              uint32_t table_offset);
+  BlockHash GetHashEntry(const uint8_t* map_ptr, uint32_t block_index,
+                         uint32_t level, uint32_t table_offset);
 
   BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index);
 

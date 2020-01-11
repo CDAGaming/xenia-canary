@@ -683,11 +683,8 @@ StfsContainerDevice::BlockHash StfsContainerDevice::GetHashEntry(
     const uint8_t* map_ptr, uint32_t block_index, uint32_t level,
     uint32_t table_offset) {
   uint32_t record = block_index;
-  if (level == 1) {
+  for (uint32_t i = 0; i < level; i++) {
     record = record / 0xAA;
-  }
-  if (level == 2) {
-    record = record / 0x70E4;
   }
   record = record % 0xAA;
 
