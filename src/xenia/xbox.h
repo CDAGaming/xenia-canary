@@ -367,7 +367,7 @@ enum class XLanguage : uint32_t {
   kItalian,
   kKorean,
   kTChinese,
-  kUnknown9,   // unused?
+  kPortuguese,
   kUnknown10,  // unused?
   kPolish,
   kRussian,

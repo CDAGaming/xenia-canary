@@ -206,6 +206,9 @@ struct XContentMetadata {
   std::wstring get_display_name(XLanguage lang) {
     uint32_t lang_id = (uint32_t)lang;
     lang_id--;
+    if (lang_id >= 12) {
+      lang_id = 0;  // no room for this lang, store in english slot..
+    }
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
@@ -226,6 +229,9 @@ struct XContentMetadata {
   std::wstring get_description(XLanguage lang) {
     uint32_t lang_id = (uint32_t)lang;
     lang_id--;
+    if (lang_id >= 12) {
+      lang_id = 0;  // no room for this lang, store in english slot..
+    }
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
@@ -263,6 +269,9 @@ struct XContentMetadata {
   bool set_display_name(const std::wstring& value, XLanguage lang) {
     uint32_t lang_id = (uint32_t)lang;
     lang_id--;
+    if (lang_id >= 12) {
+      lang_id = 0;  // no room for this lang, store in english slot..
+    }
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
@@ -281,6 +290,9 @@ struct XContentMetadata {
   bool set_description(const std::wstring& value, XLanguage lang) {
     uint32_t lang_id = (uint32_t)lang;
     lang_id--;
+    if (lang_id >= 12) {
+      lang_id = 0;  // no room for this lang, store in english slot..
+    }
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
