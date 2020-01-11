@@ -26,6 +26,16 @@ class KernelState;
 }  // namespace kernel
 }  // namespace xe
 
+// https://github.com/ThirteenAG/Ultimate-ASI-Loader/blob/master/source/xlive/xliveless.h
+#define XCONTENTFLAG_NOPROFILE_TRANSFER 0x00000010
+#define XCONTENTFLAG_NODEVICE_TRANSFER 0x00000020
+#define XCONTENTFLAG_STRONG_SIGNED 0x00000040
+#define XCONTENTFLAG_ALLOWPROFILE_TRANSFER 0x00000080
+#define XCONTENTFLAG_MOVEONLY_TRANSFER 0x00000800
+#define XCONTENTFLAG_MANAGESTORAGE 0x00000100
+#define XCONTENTFLAG_FORCE_SHOW_UI 0x00000200
+#define XCONTENTFLAG_ENUM_EXCLUDECOMMON 0x00001000
+
 namespace xe {
 namespace kernel {
 namespace xam {
@@ -69,7 +79,8 @@ class ContentManager {
                                   uint32_t title_id = -1);
 
   bool ContentExists(const XCONTENT_DATA& data);
-  X_RESULT CreateContent(std::string root_name, const XCONTENT_DATA& data);
+  X_RESULT CreateContent(std::string root_name, const XCONTENT_DATA& data,
+                         uint32_t flags);
   X_RESULT OpenContent(std::string root_name, const XCONTENT_DATA& data);
   X_RESULT CloseContent(std::string root_name);
   X_RESULT GetContentThumbnail(const XCONTENT_DATA& data,
