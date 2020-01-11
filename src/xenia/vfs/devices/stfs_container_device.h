@@ -448,7 +448,7 @@ class StfsContainerDevice : public Device {
 
   const uint32_t kSTFSDataBlocksPerHashLevel[3] = {0xAA, 0x70E4, 0x4AF768};
 
-  const char* ReadMagic(const std::wstring& path);
+  uint32_t ReadMagic(const std::wstring& path);
   bool ResolveFromFolder(const std::wstring& path);
 
   Error MapFiles();
