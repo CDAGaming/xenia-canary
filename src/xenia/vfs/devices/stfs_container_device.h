@@ -59,6 +59,26 @@ struct StfsVolumeDescriptor {
 };
 static_assert_size(StfsVolumeDescriptor, 0x24);
 
+struct StfsHashEntry {
+  uint8_t sha1[0x14];
+
+  uint8_t info0;  // usually contains flags
+
+  uint8_t info1;
+  uint8_t info2;
+  uint8_t info3;
+
+  // If this is a level0 entry, this points to the next block in the chain
+  uint32_t level0_next_block() { return info3 | (info2 << 8) | (info1 << 16); }
+
+  // If this is level 1 or 2, this says whether the hash table this entry refers
+  // to is using the secondary block or not
+  bool levelN_activeindex() { return info0 & 0x40; }
+
+  bool levelN_writeable() { return info0 & 0x80; }
+};
+static_assert_size(StfsHashEntry, 0x18);
+
 /* SVOD */
 struct SvodDeviceDescriptor {
   uint8_t descriptor_length;
@@ -385,13 +405,16 @@ struct StfsHeader {
   XContentInstaller installer;
   uint8_t padding[0x2F2];
 
+  bool has_installer() {
+    return header.header_size == 0xAD0E && installer.type != 0;
+  }
+
   void set_defaults() {
     memset(this, 0, sizeof(StfsHeader));
 
     header.magic = xe::vfs::XContentPackageType::kPackageTypeCon;
-    header.licenses[0].licensee_id =
-        -1;  // X360 gamesaves seem to set licenses like this
-    header.header_size = 0x971A;
+    header.licenses[0].licensee_id = -1;  // gamesaves set licenses like this ?
+    header.header_size = 0x971A;          // no installer section in header
 
     metadata.metadata_version = 2;
     memcpy(metadata.console_id, "XENIA", 5);
@@ -441,11 +464,6 @@ class StfsContainerDevice : public Device {
     kSingleFile = 0x4,
   };
 
-  struct BlockHash {
-    uint32_t next_block_index;
-    uint32_t info;
-  };
-
   const uint32_t kSTFSDataBlocksPerHashLevel[3] = {0xAA, 0x70E4, 0x4AF768};
 
   uint32_t ReadMagic(const std::wstring& path);
@@ -469,12 +487,12 @@ class StfsContainerDevice : public Device {
   size_t STFSDataBlockToBackingHashBlockOffset(uint64_t block,
                                                uint32_t level = 0);
 
-  BlockHash STFSGetLevelNHashEntry(const uint8_t* map_ptr, uint32_t block_index,
-                                   uint32_t level,
-                                   bool secondary_block = false);
+  StfsHashEntry STFSGetLevelNHashEntry(const uint8_t* map_ptr,
+                                       uint32_t block_index, uint32_t level,
+                                       bool secondary_block = false);
 
-  BlockHash STFSGetLevel0HashEntry(const uint8_t* map_ptr,
-                                   uint32_t block_index);
+  StfsHashEntry STFSGetLevel0HashEntry(const uint8_t* map_ptr,
+                                       uint32_t block_index);
 
   std::wstring local_path_;
   std::map<size_t, std::unique_ptr<MappedMemory>> mmap_;

@@ -542,16 +542,16 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
       if (entry->attributes() & X_FILE_ATTRIBUTE_NORMAL) {
         uint32_t block_index = start_block_index;
         size_t remaining_size = file_size;
-        uint32_t info = 0x80;
         while (remaining_size && block_index) {
+          assert_true(block_index != 0xffffff);
+
           size_t block_size =
               std::min(static_cast<size_t>(0x1000), remaining_size);
           size_t offset = STFSDataBlockToOffset(block_index);
           entry->block_list_.push_back({0, offset, block_size});
           remaining_size -= block_size;
           auto block_hash = STFSGetLevel0HashEntry(data, block_index);
-          block_index = block_hash.next_block_index;
-          info = block_hash.info;
+          block_index = block_hash.level0_next_block();
         }
       }
 
@@ -559,7 +559,7 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
     }
 
     auto block_hash = STFSGetLevel0HashEntry(data, table_block_index);
-    table_block_index = block_hash.next_block_index;
+    table_block_index = block_hash.level0_next_block();
   }
 
   if (all_entries.size() > 0) {
@@ -634,7 +634,7 @@ size_t StfsContainerDevice::STFSDataBlockToBackingHashBlockOffset(
       STFSDataBlockToBackingHashBlock(block, level));
 }
 
-StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevelNHashEntry(
+StfsHashEntry StfsContainerDevice::STFSGetLevelNHashEntry(
     const uint8_t* map_ptr, uint32_t block_index, uint32_t level,
     bool secondary_block) {
   uint32_t record = block_index;
@@ -652,13 +652,11 @@ StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevelNHashEntry(
 
   const uint8_t* hash_data = map_ptr + hash_offset;
 
-  const uint8_t* record_data = hash_data + record * 0x18;
-  uint32_t info = xe::load_and_swap<uint8_t>(record_data + 0x14);
-  uint32_t next_block_index = load_uint24_be(record_data + 0x15);
-  return {next_block_index, info};
+  auto* entry = (StfsHashEntry*)(hash_data + record * 0x18);
+  return *entry;
 }
 
-StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevel0HashEntry(
+StfsHashEntry StfsContainerDevice::STFSGetLevel0HashEntry(
     const uint8_t* map_ptr, uint32_t block_index) {
   bool use_secondary_block = false;
   // Use secondary block for root table if RootActiveIndex flag is set
@@ -679,7 +677,7 @@ StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevel0HashEntry(
       auto l2_entry =
           STFSGetLevelNHashEntry(map_ptr, block_index, 2, use_secondary_block);
       use_secondary_block = false;
-      if (l2_entry.info & 0x40) {  // ActiveIndex flag
+      if (l2_entry.levelN_activeindex()) {
         use_secondary_block = true;
       }
     }
@@ -689,7 +687,7 @@ StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevel0HashEntry(
       auto l1_entry =
           STFSGetLevelNHashEntry(map_ptr, block_index, 1, use_secondary_block);
       use_secondary_block = false;
-      if (l1_entry.info & 0x40) {  // ActiveIndex flag
+      if (l1_entry.levelN_activeindex()) {
         use_secondary_block = true;
       }
     }
