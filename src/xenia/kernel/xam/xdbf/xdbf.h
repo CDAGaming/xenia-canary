@@ -15,8 +15,8 @@
 
 #include "xenia/base/clock.h"
 #include "xenia/base/memory.h"
-
 #include "xenia/kernel/xam/xdbf/xdbf_xbox.h"
+#include "xenia/xbox.h"
 
 namespace xe {
 namespace kernel {
@@ -47,19 +47,6 @@ enum class GpdSection : uint16_t {
   kTitle = 0x4,
   kString = 0x5,
   kProtectedAchievement = 0x6,  // GFWL only
-};
-
-// Found by dumping the kSectionStringTable sections of various games:
-enum class Locale : uint32_t {
-  kUnknown = 0,
-  kEnglish = 1,
-  kJapanese = 2,
-  kGerman = 3,
-  kFrench = 4,
-  kSpanish = 5,
-  kItalian = 6,
-  kKorean = 7,
-  kChinese = 8,
 };
 
 inline std::wstring ReadNullTermString(const wchar_t* ptr) {
@@ -351,13 +338,13 @@ class XdbfFile {
 
 class SpaFile : public XdbfFile {
  public:
-  std::string GetStringTableEntry(Locale locale, uint16_t string_id) const;
+  std::string GetStringTableEntry(XLanguage lang, uint16_t string_id) const;
 
-  uint32_t GetAchievements(Locale locale,
+  uint32_t GetAchievements(XLanguage lang,
                            std::vector<Achievement>* achievements) const;
 
   Entry* GetIcon() const;
-  Locale GetDefaultLocale() const;
+  XLanguage GetDefaultLanguage() const;
   std::string GetTitleName() const;
   bool GetTitleData(X_XDBF_XTHD_DATA* title_data) const;
 };

@@ -356,6 +356,19 @@ static_assert_size(X_EXCEPTION_RECORD, 0x50);
 
 #pragma pack(pop)
 
+// Found by dumping the kSectionStringTable sections of various games:
+enum class XLanguage : uint32_t {
+  kUnknown = 0,
+  kEnglish = 1,
+  kJapanese = 2,
+  kGerman = 3,
+  kFrench = 4,
+  kSpanish = 5,
+  kItalian = 6,
+  kKorean = 7,
+  kChinese = 8,
+};
+
 }  // namespace xe
 
 // clang-format on

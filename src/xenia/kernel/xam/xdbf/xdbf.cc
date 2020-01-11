@@ -162,10 +162,10 @@ std::string GetStringTableEntry_(const uint8_t* table_start, uint16_t string_id,
   return "";
 }
 
-std::string SpaFile::GetStringTableEntry(Locale locale,
+std::string SpaFile::GetStringTableEntry(XLanguage language,
                                          uint16_t string_id) const {
   auto xstr_table = GetEntry(static_cast<uint16_t>(SpaSection::kStringTable),
-                             static_cast<uint64_t>(locale));
+                             static_cast<uint64_t>(language));
   if (!xstr_table) {
     return "";
   }
@@ -181,7 +181,7 @@ std::string SpaFile::GetStringTableEntry(Locale locale,
 }
 
 uint32_t SpaFile::GetAchievements(
-    Locale locale, std::vector<Achievement>* achievements) const {
+    XLanguage lang, std::vector<Achievement>* achievements) const {
   auto xach_table = GetEntry(static_cast<uint16_t>(SpaSection::kMetadata),
                              static_cast<uint64_t>(SpaID::Xach));
   if (!xach_table) {
@@ -194,7 +194,7 @@ uint32_t SpaFile::GetAchievements(
   assert_true(xach_head->header.version == 1);
 
   auto xstr_table = GetEntry(static_cast<uint16_t>(SpaSection::kStringTable),
-                             static_cast<uint64_t>(locale));
+                             static_cast<uint64_t>(lang));
   if (!xstr_table) {
     return 0;
   }
@@ -240,21 +240,21 @@ Entry* SpaFile::GetIcon() const {
                   static_cast<uint64_t>(SpaID::Title));
 }
 
-Locale SpaFile::GetDefaultLocale() const {
+XLanguage SpaFile::GetDefaultLanguage() const {
   auto block = GetEntry(static_cast<uint16_t>(SpaSection::kMetadata),
                         static_cast<uint64_t>(SpaID::Xstc));
   if (!block) {
-    return Locale::kEnglish;
+    return XLanguage::kEnglish;
   }
 
   auto xstc = reinterpret_cast<const X_XDBF_XSTC_DATA*>(block->data.data());
   assert_true(xstc->header.magic == static_cast<uint32_t>(SpaID::Xstc));
 
-  return static_cast<Locale>(static_cast<uint32_t>(xstc->default_language));
+  return static_cast<XLanguage>(static_cast<uint32_t>(xstc->default_language));
 }
 
 std::string SpaFile::GetTitleName() const {
-  return GetStringTableEntry(GetDefaultLocale(),
+  return GetStringTableEntry(GetDefaultLanguage(),
                              static_cast<uint16_t>(SpaID::Title));
 }
 

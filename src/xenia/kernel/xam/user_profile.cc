@@ -524,7 +524,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
 
   std::vector<xdbf::Achievement> spa_achievements;
   // TODO: let user choose locale?
-  spa_data.GetAchievements(spa_data.GetDefaultLocale(), &spa_achievements);
+  spa_data.GetAchievements(spa_data.GetDefaultLanguage(), &spa_achievements);
 
   // Check if title should be included in the dash GPD title list
   // These checks should hopefully match the same checks X360 uses

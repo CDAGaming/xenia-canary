@@ -124,7 +124,7 @@ X_STATUS UserModule::LoadFromFile(std::string path) {
       content_manager->SetTitleIdOverride(exec_info->title_id);
 
       auto update_packages = content_manager->ListContent(
-          0, (uint32_t)vfs::StfsContentType::kInstaller);
+          0, (uint32_t)vfs::XContentType::kInstaller);
 
       for (auto& update : update_packages) {
         auto result = content_manager->OpenContent("update", update);
