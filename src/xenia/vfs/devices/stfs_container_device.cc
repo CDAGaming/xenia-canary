@@ -220,6 +220,23 @@ StfsContainerDevice::Error StfsContainerDevice::ReadHeaderAndVerify(
     return Error::kErrorDamagedFile;
   }
 
+  // Pre-calculate some values used in block number calculations
+  blocks_per_hash_table_ = 1;
+  block_step_[0] = 0xAB;
+  block_step_[1] = 0x718F;
+
+  // TODO: it seems if header_.header_size > 0xA000, this should make sure never
+  // to follow the branch below? Since the header size would spill over into the
+  // first hash tables primary block (@0xA000), that must mean it only uses a
+  // single block for each table, right?
+  // Need to verify with kernel if it actually bases anything on the header_size
+  // field.
+  if (!header_.stfs_volume_descriptor.read_only_package()) {
+    blocks_per_hash_table_ = 2;
+    block_step_[0] = 0xAC;
+    block_step_[1] = 0x723A;
+  }
+
   return Error::kSuccess;
 }
 
@@ -499,7 +516,7 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
   auto& volume_descriptor = header_.stfs_volume_descriptor;
   uint32_t table_block_index = volume_descriptor.file_table_block_number;
   for (size_t n = 0; n < volume_descriptor.file_table_block_count; n++) {
-    const uint8_t* p = data + BlockToOffsetSTFS(table_block_index);
+    const uint8_t* p = data + STFSDataBlockToOffset(table_block_index);
     for (size_t m = 0; m < 0x1000 / 0x40; m++) {
       const uint8_t* filename = p;  // 0x28b
       if (filename[0] == 0) {
@@ -537,7 +554,7 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
         entry->attributes_ = kFileAttributeDirectory;
       } else {
         entry->attributes_ = kFileAttributeNormal | kFileAttributeReadOnly;
-        entry->data_offset_ = BlockToOffsetSTFS(start_block_index);
+        entry->data_offset_ = STFSDataBlockToOffset(start_block_index);
         entry->data_size_ = file_size;
       }
       entry->size_ = file_size;
@@ -560,10 +577,10 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
         while (remaining_size && block_index) {
           size_t block_size =
               std::min(static_cast<size_t>(0x1000), remaining_size);
-          size_t offset = BlockToOffsetSTFS(block_index);
+          size_t offset = STFSDataBlockToOffset(block_index);
           entry->block_list_.push_back({0, offset, block_size});
           remaining_size -= block_size;
-          auto block_hash = GetBlockHash(data, block_index);
+          auto block_hash = STFSGetLevel0HashEntry(data, block_index);
           block_index = block_hash.next_block_index;
           info = block_hash.info;
         }
@@ -572,7 +589,7 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
       parent_entry->children_.emplace_back(std::move(entry));
     }
 
-    auto block_hash = GetBlockHash(data, table_block_index);
+    auto block_hash = STFSGetLevel0HashEntry(data, table_block_index);
     table_block_index = block_hash.next_block_index;
   }
 
@@ -580,121 +597,86 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
     return Error::kSuccess;
   }
 
-  // Failed to load any entries, try with old algo if we haven't already
-  if (!use_old_algorithm_) {
-    use_old_algorithm_ = true;
-    return ReadSTFS();
-  }
-
-  // Tried with old algo and still no entries... return failure
+  // No entries found... return failure
   return Error::kErrorReadError;
 }
 
-size_t StfsContainerDevice::BlockToOffsetSTFS(uint64_t block_index) {
-  if (use_old_algorithm_) {
-    return BlockToOffsetSTFS_Old(block_index);
-  }
-
-  uint32_t num_tables = 1;  // num hashtables per block? or maybe backingblocks?
-  if (!read_only_package()) {
-    num_tables++;
-  }
-
-  uint64_t dataBlock =
-      block_index + num_tables * ((block_index + kSTFSBlocksPerHashTable) /
-                                  kSTFSBlocksPerHashTable);
-  if (block_index >= kSTFSBlocksPerHashTable) {
-    dataBlock += num_tables * ((block_index + kSTFSBlocksPerL1HashTable) /
-                               kSTFSBlocksPerL1HashTable);
-    if (block_index >= kSTFSBlocksPerL1HashTable) {
-      dataBlock += num_tables * ((block_index + kSTFSBlocksPerL2HashTable) /
-                                 kSTFSBlocksPerL2HashTable);
-    }
-  }
-
-  return BackingBlockToOffsetSTFS(dataBlock);
-}
-
-size_t StfsContainerDevice::BlockToOffsetSTFS_Old(uint64_t block_index) {
-  uint64_t block;
-  uint32_t block_shift = 0;
-  if (((header_.header_size + 0x0FFF) & 0xB000) == 0xB000 ||
-      (header_.stfs_volume_descriptor.flags & 0x1) == 0x0) {
-    block_shift = package_type_ == StfsPackageType::kCon ? 1 : 0;
-  }
-
+uint64_t StfsContainerDevice::STFSDataBlockToBackingBlock(
+    uint64_t block_index) {
   // For every level there is a hash table
   // Level 0: hash table of next 170 blocks
   // Level 1: hash table of next 170 hash tables
   // Level 2: hash table of next 170 level 1 hash tables
   // And so on...
-  uint64_t base = kSTFSBlocksPerHashTable;
-  block = block_index;
+  uint64_t block = block_index;
   for (uint32_t i = 0; i < 3; i++) {
-    block += (block_index + (base << block_shift)) / (base << block_shift);
-    if (block_index < base) {
+    block += blocks_per_hash_table_ *
+             ((block_index + kSTFSDataBlocksPerHashLevel[i]) /
+              kSTFSDataBlocksPerHashLevel[i]);
+    if (block_index < kSTFSDataBlocksPerHashLevel[i]) {
       break;
     }
-
-    base *= kSTFSBlocksPerHashTable;
   }
 
-  return xe::round_up(header_.header_size, 0x1000) + (block << 12);
+  return block;
 }
 
-size_t StfsContainerDevice::BackingBlockToOffsetSTFS(uint64_t backing_block) {
-  return xe::round_up(header_.header_size, 0x1000) + (backing_block * 0x1000);
-}
-
-size_t StfsContainerDevice::BlockToHashBlockOffset(uint64_t block,
-                                                   uint32_t hash_level) {
-  uint32_t num_tables = 1;
-  uint32_t block_step0 = 0xAB;
-  uint32_t block_step1 = 0x718F;
-  if (!read_only_package()) {
-    num_tables = 2;
-    block_step0 = 0xAC;
-    block_step1 = 0x723A;
-  }
-
+uint64_t StfsContainerDevice::STFSDataBlockToBackingHashBlock(uint64_t block,
+                                                              uint32_t level) {
   uint64_t backing_num = 0;
-  switch (hash_level) {
+  switch (level) {
     case 0:
-      backing_num = (block / kSTFSBlocksPerHashTable) * block_step0;
-      if (block / kSTFSBlocksPerHashTable == 0) {
-        return BackingBlockToOffsetSTFS(backing_num);
+      backing_num = (block / kSTFSDataBlocksPerHashLevel[0]) * block_step_[0];
+      if (block / kSTFSDataBlocksPerHashLevel[0] == 0) {
+        return backing_num;
       }
 
-      backing_num += ((block / kSTFSBlocksPerL1HashTable) + 1) * num_tables;
-      if (block / kSTFSBlocksPerL1HashTable == 0) {
-        return BackingBlockToOffsetSTFS(backing_num);
+      backing_num += ((block / kSTFSDataBlocksPerHashLevel[1]) + 1) *
+                     blocks_per_hash_table_;
+      if (block / kSTFSDataBlocksPerHashLevel[1] == 0) {
+        return backing_num;
       }
       break;
     case 1:
-      backing_num = (block / kSTFSBlocksPerL1HashTable) * block_step1;
-      if (block / kSTFSBlocksPerL1HashTable == 0) {
-        return BackingBlockToOffsetSTFS(backing_num + block_step0);
+      backing_num = (block / kSTFSDataBlocksPerHashLevel[1]) * block_step_[1];
+      if (block / kSTFSDataBlocksPerHashLevel[1] == 0) {
+        return backing_num + block_step_[0];
       }
       break;
     default:
-      return BackingBlockToOffsetSTFS(block_step1);
+      return block_step_[1];
   }
 
-  return BackingBlockToOffsetSTFS(backing_num + num_tables);
+  return backing_num + blocks_per_hash_table_;
 }
 
-StfsContainerDevice::BlockHash StfsContainerDevice::GetHashEntry(
+size_t StfsContainerDevice::STFSBackingBlockToOffset(uint64_t backing_block) {
+  return xe::round_up(header_.header_size, 0x1000) + (backing_block * 0x1000);
+}
+
+size_t StfsContainerDevice::STFSDataBlockToOffset(uint64_t block) {
+  return STFSBackingBlockToOffset(STFSDataBlockToBackingBlock(block));
+}
+
+size_t StfsContainerDevice::STFSDataBlockToBackingHashBlockOffset(
+    uint64_t block, uint32_t level) {
+  return STFSBackingBlockToOffset(
+      STFSDataBlockToBackingHashBlock(block, level));
+}
+
+StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevelNHashEntry(
     const uint8_t* map_ptr, uint32_t block_index, uint32_t level,
-    bool secondary_table) {
+    bool secondary_block) {
   uint32_t record = block_index;
   for (uint32_t i = 0; i < level; i++) {
-    record = record / kSTFSBlocksPerHashTable;
+    record = record / kSTFSDataBlocksPerHashLevel[0];
   }
-  record = record % kSTFSBlocksPerHashTable;
+  record = record % kSTFSDataBlocksPerHashLevel[0];
 
-  size_t hash_offset = BlockToHashBlockOffset(block_index, level);
-  if (secondary_table) {
-    hash_offset += bytes_per_sector();  // use alternate hash table?
+  size_t hash_offset =
+      STFSDataBlockToBackingHashBlockOffset(block_index, level);
+  if (secondary_block && !header_.stfs_volume_descriptor.read_only_package()) {
+    hash_offset += bytes_per_sector();  // read from this tables secondary block
   }
 
   const uint8_t* hash_data = map_ptr + hash_offset;
@@ -705,44 +687,44 @@ StfsContainerDevice::BlockHash StfsContainerDevice::GetHashEntry(
   return {next_block_index, info};
 }
 
-StfsContainerDevice::BlockHash StfsContainerDevice::GetBlockHash(
+StfsContainerDevice::BlockHash StfsContainerDevice::STFSGetLevel0HashEntry(
     const uint8_t* map_ptr, uint32_t block_index) {
-  bool use_secondary_table = false;
-  // Use secondary table for root table if RootActiveIndex flag is set
-  if (header_.stfs_volume_descriptor.flags & 2) {
-    use_secondary_table = true;
+  bool use_secondary_block = false;
+  // Use secondary block for root table if RootActiveIndex flag is set
+  if (header_.stfs_volume_descriptor.root_table_secondary()) {
+    use_secondary_block = true;
   }
 
   // Check upper hash table levels to find which table (primary/secondary) to
   // use.
-  // Hopefully we can skip doing this if the package is read-only
-  // (and RootActiveIndex isn't set)
-  if (!read_only_package() || use_secondary_table) {
+  // We should be able to skip this if it's a read-only package, since the hash
+  // tables in those only use one block
+  if (!header_.stfs_volume_descriptor.read_only_package()) {
     auto num_blocks =
         header_.stfs_volume_descriptor.total_allocated_block_count;
 
-    if (num_blocks >= kSTFSBlocksPerL1HashTable) {
+    if (num_blocks >= kSTFSDataBlocksPerHashLevel[1]) {
       // Get the L2 entry for the block
       auto l2_entry =
-          GetHashEntry(map_ptr, block_index, 2, use_secondary_table);
-      use_secondary_table = false;
+          STFSGetLevelNHashEntry(map_ptr, block_index, 2, use_secondary_block);
+      use_secondary_block = false;
       if (l2_entry.info & 0x40) {  // ActiveIndex flag
-        use_secondary_table = true;
+        use_secondary_block = true;
       }
     }
 
-    if (num_blocks >= kSTFSBlocksPerHashTable) {
+    if (num_blocks >= kSTFSDataBlocksPerHashLevel[0]) {
       // Get the L1 entry for this block
       auto l1_entry =
-          GetHashEntry(map_ptr, block_index, 1, use_secondary_table);
-      use_secondary_table = false;
+          STFSGetLevelNHashEntry(map_ptr, block_index, 1, use_secondary_block);
+      use_secondary_block = false;
       if (l1_entry.info & 0x40) {  // ActiveIndex flag
-        use_secondary_table = true;
+        use_secondary_block = true;
       }
     }
   }
 
-  return GetHashEntry(map_ptr, block_index, 0, use_secondary_table);
+  return STFSGetLevelNHashEntry(map_ptr, block_index, 0, use_secondary_block);
 }
 
 bool StfsVolumeDescriptor::Read(const uint8_t* p) {

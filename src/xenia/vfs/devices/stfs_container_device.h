@@ -86,6 +86,16 @@ struct StfsVolumeDescriptor {
   uint8_t top_hash_table_hash[0x14];
   uint32_t total_allocated_block_count;
   uint32_t total_unallocated_block_count;
+
+  // Whether this is a read-only package - these will only use a single block
+  // for each hash table, compared to the two blocks used in non-read-only
+  bool read_only_package() { return (flags & 1) != 0; }
+
+  // Whether the root hash table is stored in the hash tables secondary block
+  // Only valid if read_only_package is false
+  bool root_table_secondary() {
+    return !read_only_package() && (flags & 2) != 0;
+  }
 };
 
 enum SvodDeviceFeatures {
@@ -183,10 +193,6 @@ class StfsContainerDevice : public Device {
   uint32_t sectors_per_allocation_unit() const override { return 1; }
   uint32_t bytes_per_sector() const override { return 4 * 1024; }
 
-  bool read_only_package() {
-    return (header_.stfs_volume_descriptor.flags & 1) != 0;
-  }
-
   StfsHeader& header() { return header_; }
 
   uint32_t ExtractToFolder(const std::wstring& dest_path);
@@ -205,9 +211,7 @@ class StfsContainerDevice : public Device {
     uint32_t info;
   };
 
-  const uint32_t kSTFSBlocksPerHashTable = 0xAA;
-  const uint32_t kSTFSBlocksPerL1HashTable = 0x70E4;
-  const uint32_t kSTFSBlocksPerL2HashTable = 0x4AF768;
+  const uint32_t kSTFSDataBlocksPerHashLevel[3] = {0xAA, 0x70E4, 0x4AF768};
 
   bool ResolveFromFolder(const std::wstring& path);
 
@@ -222,29 +226,34 @@ class StfsContainerDevice : public Device {
   void BlockToOffsetSVOD(size_t sector, size_t* address, size_t* file_index);
 
   Error ReadSTFS();
-  size_t BlockToOffsetSTFS(uint64_t block);
-  size_t BlockToOffsetSTFS_Old(uint64_t block);
 
-  size_t BackingBlockToOffsetSTFS(uint64_t backing_block);
+  uint64_t STFSDataBlockToBackingBlock(uint64_t block);
+  uint64_t STFSDataBlockToBackingHashBlock(uint64_t block, uint32_t level = 0);
 
-  size_t BlockToHashBlockOffset(uint64_t block, uint32_t hash_level = 0);
+  size_t STFSBackingBlockToOffset(uint64_t backing_block);
+  size_t STFSDataBlockToOffset(uint64_t block);
+  size_t STFSDataBlockToBackingHashBlockOffset(uint64_t block,
+                                               uint32_t level = 0);
 
-  BlockHash GetHashEntry(const uint8_t* map_ptr, uint32_t block_index,
-                         uint32_t level, bool secondary_table = false);
+  BlockHash STFSGetLevelNHashEntry(const uint8_t* map_ptr, uint32_t block_index,
+                                   uint32_t level,
+                                   bool secondary_block = false);
 
-  BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index);
+  BlockHash STFSGetLevel0HashEntry(const uint8_t* map_ptr,
+                                   uint32_t block_index);
 
   std::wstring local_path_;
   std::map<size_t, std::unique_ptr<MappedMemory>> mmap_;
   size_t mmap_total_size_;
+
+  uint32_t blocks_per_hash_table_ = 1;
+  uint32_t block_step_[2] = {0xAB, 0x718F};
 
   size_t base_offset_;
   size_t magic_offset_;
   std::unique_ptr<Entry> root_entry_;
   StfsPackageType package_type_;
   StfsHeader header_;
-
-  bool use_old_algorithm_ = false;
 };
 
 }  // namespace vfs
