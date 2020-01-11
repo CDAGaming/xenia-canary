@@ -188,10 +188,10 @@ struct XContentMetadata {
     XContentAvatarAssetData avatar_asset_data;
   };
   uint8_t device_id[0x14];
-  wchar_t display_name[9][0x80];
-  wchar_t description[9][0x80];
-  wchar_t publisher[0x40];
-  wchar_t title_name[0x40];
+  uint16_t display_name[9][0x80];
+  uint16_t description[9][0x80];
+  uint16_t publisher[0x40];
+  uint16_t title_name[0x40];
   union {
     XContentAttributes bits;
     uint8_t as_byte;
@@ -199,9 +199,9 @@ struct XContentMetadata {
   xe::be<uint32_t> thumbnail_size;
   xe::be<uint32_t> title_thumbnail_size;
   uint8_t thumbnail[0x3D00];
-  wchar_t display_name_ex[3][0x80];
+  uint16_t display_name_ex[3][0x80];
   uint8_t title_thumbnail[0x3D00];
-  wchar_t description_ex[3][0x80];
+  uint16_t description_ex[3][0x80];
 
   std::wstring get_display_name(XLanguage lang) {
     uint32_t lang_id = (uint32_t)lang;
@@ -209,9 +209,9 @@ struct XContentMetadata {
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
-      str = display_name[lang_id];
+      str = (wchar_t*)display_name[lang_id];
     } else if (lang_id >= 9 && lang_id < 12 && metadata_version >= 2) {
-      str = display_name_ex[lang_id - 9];
+      str = (wchar_t*)display_name_ex[lang_id - 9];
     }
     if (!str) {
       return L"";
@@ -229,9 +229,9 @@ struct XContentMetadata {
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
-      str = display_name[lang_id];
+      str = (wchar_t*)display_name[lang_id];
     } else if (lang_id >= 9 && lang_id < 12 && metadata_version >= 2) {
-      str = display_name_ex[lang_id - 9];
+      str = (wchar_t*)display_name_ex[lang_id - 9];
     }
     if (!str) {
       return L"";
@@ -244,16 +244,18 @@ struct XContentMetadata {
     return std::wstring(wstr.data());
   }
   std::wstring get_publisher() {
+    wchar_t* value = (wchar_t*)publisher;
     std::vector<wchar_t> wstr;
-    wstr.resize(wcslen(publisher) + 1);  // add 1 in case wcslen returns 0
-    xe::copy_and_swap<wchar_t>(wstr.data(), publisher, wcslen(publisher));
+    wstr.resize(wcslen(value) + 1);  // add 1 in case wcslen returns 0
+    xe::copy_and_swap<wchar_t>(wstr.data(), value, wcslen(value));
 
     return std::wstring(wstr.data());
   }
   std::wstring get_title_name() {
+    wchar_t* value = (wchar_t*)title_name;
     std::vector<wchar_t> wstr;
-    wstr.resize(wcslen(title_name) + 1);  // add 1 in case wcslen returns 0
-    xe::copy_and_swap<wchar_t>(wstr.data(), title_name, wcslen(title_name));
+    wstr.resize(wcslen(value) + 1);  // add 1 in case wcslen returns 0
+    xe::copy_and_swap<wchar_t>(wstr.data(), value, wcslen(value));
 
     return std::wstring(wstr.data());
   }
@@ -264,9 +266,9 @@ struct XContentMetadata {
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
-      str = display_name[lang_id];
+      str = (wchar_t*)display_name[lang_id];
     } else if (lang_id >= 9 && lang_id < 12 && metadata_version >= 2) {
-      str = display_name_ex[lang_id - 9];
+      str = (wchar_t*)display_name_ex[lang_id - 9];
     }
     if (!str) {
       return false;
@@ -282,9 +284,9 @@ struct XContentMetadata {
 
     wchar_t* str = 0;
     if (lang_id >= 0 && lang_id < 9) {
-      str = description[lang_id];
+      str = (wchar_t*)description[lang_id];
     } else if (lang_id >= 9 && lang_id < 12 && metadata_version >= 2) {
-      str = description_ex[lang_id - 9];
+      str = (wchar_t*)description_ex[lang_id - 9];
     }
     if (!str) {
       return false;
@@ -295,12 +297,12 @@ struct XContentMetadata {
     return true;
   }
   bool set_publisher(const std::wstring& value) {
-    xe::copy_and_swap<wchar_t>(publisher, value.c_str(),
+    xe::copy_and_swap<wchar_t>((wchar_t*)publisher, value.c_str(),
                                std::min(value.length(), (size_t)128));
     return true;
   }
   bool set_title_name(const std::wstring& value) {
-    xe::copy_and_swap<wchar_t>(title_name, value.c_str(),
+    xe::copy_and_swap<wchar_t>((wchar_t*)title_name, value.c_str(),
                                std::min(value.length(), (size_t)128));
     return true;
   }
