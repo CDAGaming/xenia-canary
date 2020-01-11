@@ -205,7 +205,9 @@ class StfsContainerDevice : public Device {
     uint32_t info;
   };
 
-  const uint32_t kSTFSHashSpacing = 170;
+  const uint32_t kSTFSBlocksPerHashTable = 0xAA;
+  const uint32_t kSTFSBlocksPerL1HashTable = 0x70E4;
+  const uint32_t kSTFSBlocksPerL2HashTable = 0x4AF768;
 
   bool ResolveFromFolder(const std::wstring& path);
 
@@ -228,7 +230,7 @@ class StfsContainerDevice : public Device {
   size_t BlockToHashBlockOffset(uint64_t block, uint32_t hash_level = 0);
 
   BlockHash GetHashEntry(const uint8_t* map_ptr, uint32_t block_index,
-                         uint32_t level, uint32_t table_offset);
+                         uint32_t level, bool secondary_table = false);
 
   BlockHash GetBlockHash(const uint8_t* map_ptr, uint32_t block_index);
 
