@@ -654,24 +654,28 @@ size_t StfsContainerDevice::BlockToHashBlockOffset(uint64_t block,
   }
 
   uint64_t backing_num = 0;
-  if (hash_level == 0) {
-    backing_num = (block / 0xAA) * blockStep0;
-    if (block / 0xAA == 0) {
-      return BackingBlockToOffsetSTFS(backing_num);
-    }
+  switch (hash_level) {
+    case 0:
+      backing_num = (block / 0xAA) * blockStep0;
+      if (block / 0xAA == 0) {
+        return BackingBlockToOffsetSTFS(backing_num);
+      }
 
-    backing_num = backing_num + ((block / 0x70E4) + 1) * numTables;
-    if (block / 0x70E4 == 0) {
-      return BackingBlockToOffsetSTFS(backing_num);
-    }
-  } else if (hash_level == 1) {
-    backing_num = (block / 0x70E4) * blockStep1;
-    if (block / 0x70E4 == 0) {
-      return BackingBlockToOffsetSTFS(backing_num + blockStep0);
-    }
-  } else {
-    return BackingBlockToOffsetSTFS(blockStep0);
+      backing_num += ((block / 0x70E4) + 1) * numTables;
+      if (block / 0x70E4 == 0) {
+        return BackingBlockToOffsetSTFS(backing_num);
+      }
+      break;
+    case 1:
+      backing_num = (block / 0x70E4) * blockStep1;
+      if (block / 0x70E4 == 0) {
+        return BackingBlockToOffsetSTFS(backing_num + blockStep0);
+      }
+      break;
+    default:
+      return BackingBlockToOffsetSTFS(blockStep1);
   }
+
   return BackingBlockToOffsetSTFS(backing_num + numTables);
 }
 
