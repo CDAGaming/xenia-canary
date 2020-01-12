@@ -58,6 +58,8 @@ EmulatorWindow::EmulatorWindow(Emulator* emulator)
 #endif
 #endif
                 L" (" + xe::to_wstring(XE_BUILD_BRANCH) + L"/" +
+                L"0.0.0." +
+                xe::to_wstring(XE_BUILD_COMMIT_NUMBER) + L"/" +
                 xe::to_wstring(XE_BUILD_COMMIT_SHORT) + L"/" +
                 xe::to_wstring(XE_BUILD_DATE) + L")";
 }
