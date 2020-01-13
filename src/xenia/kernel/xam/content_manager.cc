@@ -96,7 +96,8 @@ std::vector<XCONTENT_DATA> ContentManager::ListContent(uint32_t device_id,
 
     auto headers_path = file_info.path + file_info.name;
     if (file_info.type == xe::filesystem::FileInfo::Type::kDirectory) {
-      headers_path = headers_path + ContentManager::kStfsHeadersExtension;
+      headers_path =
+          xe::join_paths(headers_path, ContentManager::kStfsHeadersExtension);
     }
 
     if (xe::filesystem::PathExists(headers_path)) {
