@@ -315,6 +315,67 @@ dword_result_t XamContentCreateEx(dword_t user_index, lpstring_t root_name,
     result = content_manager->OpenContent(root_name.value(), content_data);
   }
 
+  if (!result && content_data.content_type ==
+                     (uint32_t)vfs::StfsContentType::kMarketplaceContent) {
+    // Load up spa.bin from this DLC if it has one:
+    // TODO: should we do this inside ContentManager instead?
+    auto spa_entry = kernel_state()->file_system()->ResolvePath(
+        root_name.value() + ":\\spa.bin");
+    if (spa_entry) {
+      kernel::xam::xdbf::SpaFile spa;
+      bool spa_result = false;
+      // If the FS supports mapping, map the file in and load from that.
+      if (spa_entry->can_map()) {
+        // Map.
+        auto mmap = spa_entry->OpenMapped(MappedMemory::Mode::kRead);
+        if (mmap) {
+          // Load the SPA
+          spa_result = spa.Read(mmap->data(), mmap->size());
+        }
+      } else {
+        std::vector<uint8_t> buffer(spa_entry->size());
+
+        // Open file for reading.
+        vfs::File* file = nullptr;
+        auto result2 = spa_entry->Open(vfs::FileAccess::kGenericRead, &file);
+        if (!result2) {
+          // Read entire file into memory.
+          // Ugh.
+          size_t bytes_read = 0;
+          result2 =
+              file->ReadSync(buffer.data(), buffer.size(), 0, &bytes_read);
+          if (!result2) {
+            // Load the SPA.
+            spa_result = spa.Read(buffer.data(), bytes_read);
+
+            // Close the file.
+            file->Destroy();
+          }
+        }
+      }
+      if (spa_result) {
+        XELOGI("Loaded SPA data from DLC package %s (%S)",
+               content_data.file_name.c_str(),
+               content_data.display_name.c_str());
+        xdbf::X_XDBF_XTHD_DATA title_data;
+        if (spa.GetTitleData(&title_data)) {
+          XELOGI("(SPA version: %d.%d.%d.%d)",
+                 (uint32_t)title_data.title_version_major,
+                 (uint32_t)title_data.title_version_minor,
+                 (uint32_t)title_data.title_version_build,
+                 (uint32_t)title_data.title_version_revision);
+        }
+        // Set/update title SPA
+        for (uint32_t i = 0; i < kernel_state()->num_profiles(); i++) {
+          auto profile = kernel_state()->user_profile(i);
+          if (profile) {
+            profile->SetTitleSpaData(spa);
+          }
+        }
+      }
+    }
+  }
+
   if (license_mask_ptr && XSUCCEEDED(result)) {
     *license_mask_ptr = 0;  // Stub!
   }

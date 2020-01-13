@@ -552,7 +552,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
   if (gpd != title_gpds_.end()) {
     auto& title_gpd = (*gpd).second;
 
-    XELOGI("Loaded existing GPD for title %X", title_data.title_id);
+    XELOGD("Updating existing GPD for title %X", (uint32_t)title_data.title_id);
 
     bool always_update_title = false;
     if (!dash_gpd_.GetTitle(title_data.title_id, &title_info)) {
@@ -608,7 +608,7 @@ xdbf::GpdFile* UserProfile::SetTitleSpaData(const xdbf::SpaFile& spa_data) {
     UpdateGpd(kDashboardID, dash_gpd_);
   } else {
     // GPD not found... have to create it!
-    XELOGI("Creating new GPD for title %X", title_data.title_id);
+    XELOGI("Creating new GPD for title %X", (uint32_t)title_data.title_id);
 
     title_info.title_name = xe::to_wstring(spa_data.GetTitleName());
     title_info.title_id = title_data.title_id;
