@@ -391,58 +391,27 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
                                        qword_t total_requested,
                                        lpdword_t device_id_ptr,
                                        pointer_t<XAM_OVERLAPPED> overlapped) {
-
-  // Set overlapped to X_ERROR_IO_PENDING
-  if (overlapped) {
-    XOverlappedSetResult((void*)overlapped.host_address(), X_ERROR_IO_PENDING);
-  }
-  
-  // broadcast begin 
-  kernel_state()->BroadcastNotification(0x1, 1);
-  // Broadcast XN_SYS_UI = true
-  kernel_state()->BroadcastNotification(0x9, true);
-
-  auto ui_fn = [content_type, device_id_ptr, overlapped]() {
-    XELOGW("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
-           content_type, device_id_ptr, (bool)overlapped);
-
-    // NOTE: 0x00000001 is our dummy device ID from xam_content.cc
-    *device_id_ptr = 0x00000001;
-
-    xe::threading::Sleep(std::chrono::milliseconds(500));
-
+  // user_index must be 0-3 or 0xFF, device_id_ptr can't be null and
+  // overlapped is required
+  // XAM also checks something to do with content_flags here, but we don't
+  // handle that atm so who cares
+  if ((user_index > 3 && user_index != 0xFF) || !device_id_ptr || !overlapped) {
     if (overlapped) {
-      kernel_state()->CompleteOverlappedImmediate(overlapped, X_ERROR_SUCCESS);
+      kernel_state()->CompleteOverlappedImmediate(overlapped,
+                                                  X_ERROR_INVALID_PARAMETER);
     }
-
-    xe::threading::Sleep(std::chrono::milliseconds(100));
-
-    // Broadcast XN_SYS_UI = true followed by XN_SYS_UI = false
-    kernel_state()->BroadcastNotification(0x9, true);
-    kernel_state()->BroadcastNotification(0x9, false);
-
-    // return 0;
-    return X_ERROR_SUCCESS;
-  };
-
-  if (overlapped) {
-     // Create a host thread to run the function above
-    auto ui_thread = kernel::object_ref<kernel::XHostThread>(
-        new kernel::XHostThread(kernel_state(), 128 * 1024, 0, ui_fn));
-    ui_thread->set_name("XamShowDeviceSelectorUI Thread");
-    ui_thread->Create();
-    while (ui_thread->last_error() != X_ERROR_SUCCESS) {
-      xe::threading::Sleep(std::chrono::milliseconds(110));
-    }
-    // broadcast end 
-    kernel_state()->BroadcastNotification(0x26, 1);
-    return X_ERROR_IO_PENDING;
-  } else {
-    ui_fn();
-    // broadcast end 
-    kernel_state()->BroadcastNotification(0x26, 1);
-    return X_ERROR_SUCCESS;
+    return X_ERROR_INVALID_PARAMETER;
   }
+
+  // NOTE: 0x00000001 is our dummy device ID from xam_content.cc
+  *device_id_ptr = 0x00000001;
+
+  // Broadcast XN_SYS_UI = true followed by XN_SYS_UI = false
+  kernel_state()->BroadcastNotification(0x9, true);
+  kernel_state()->BroadcastNotification(0x9, false);
+
+  kernel_state()->CompleteOverlappedImmediate(overlapped, X_ERROR_SUCCESS);
+  return X_ERROR_IO_PENDING;
 }
 DECLARE_XAM_EXPORT1(XamShowDeviceSelectorUI, kUI, kImplemented);
 
