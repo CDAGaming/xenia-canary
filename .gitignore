@@ -84,6 +84,9 @@ node_modules/.bin/
 
 # coverage/etc
 /scratch/
+/cache0/
+/cache1/
+recent.txt
 
 /build/
 
