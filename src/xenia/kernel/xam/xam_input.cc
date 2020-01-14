@@ -26,6 +26,7 @@ using xe::hid::X_INPUT_STATE;
 using xe::hid::X_INPUT_VIBRATION;
 
 constexpr uint32_t XINPUT_FLAG_GAMEPAD = 0x01;
+constexpr uint32_t XINPUT_FLAG_KEYBOARD = 0x02;
 constexpr uint32_t XINPUT_FLAG_ANY_USER = 1 << 30;
 
 void XamResetInactivity() {
@@ -157,7 +158,8 @@ dword_result_t XamInputGetKeystrokeEx(lpdword_t user_index_ptr, dword_t flags,
     return X_ERROR_BAD_ARGUMENTS;
   }
 
-  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0) {
+  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0 &&
+      (flags & XINPUT_FLAG_KEYBOARD) == 0) {
     // Ignore any query for other types of devices.
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
