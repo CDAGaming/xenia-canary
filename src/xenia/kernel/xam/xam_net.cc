@@ -65,6 +65,25 @@ typedef struct {
   in_addr aina[8];
 } XNDNS;
 
+typedef struct {
+  BYTE bFlags;
+  BYTE bReserved;
+  xe::be<uint16_t> cProbesXmit;
+  xe::be<uint16_t> cProbesRecv;
+  xe::be<uint16_t> cbData;
+  xe::be<uint32_t> pbData;
+  xe::be<uint16_t> wRttMinInMsecs;
+  xe::be<uint16_t> wRttMedInMsecs;
+  xe::be<uint32_t> dwUpBitsPerSec;
+  xe::be<uint32_t> dwDnBitsPerSec;
+} XNQOSINFO;
+
+typedef struct {
+  xe::be<uint32_t> cxnqos;
+  xe::be<uint32_t> cxnqosPending;
+  XNQOSINFO axnqosinfo[1];
+} XNQOS;
+
 struct Xsockaddr_t {
   xe::be<uint16_t> sa_family;
   char sa_data[14];
@@ -568,11 +587,10 @@ dword_result_t NetDll_XNetQosServiceLookup(dword_t caller, dword_t zero,
                                            lpdword_t pqos) {
   // TODO: actually implement this
   if (pqos) {
-    // TODO: XNQOS struct? seems to be 0x20 bytes
-    auto out_guest = kernel_memory()->SystemHeapAlloc(0x20);
-    auto out = kernel_memory()->TranslateVirtual<uint8_t*>(out_guest);
-    memset(out, 0, 0x20);
-    *pqos = out_guest;
+    auto qos_guest = kernel_memory()->SystemHeapAlloc(sizeof(XNQOS));
+    auto qos = kernel_memory()->TranslateVirtual<XNQOS*>(qos_guest);
+    memset(qos, 0, sizeof(XNQOS));
+    *pqos = qos_guest;
   }
 
   if (event_handle) {
@@ -585,7 +603,7 @@ dword_result_t NetDll_XNetQosServiceLookup(dword_t caller, dword_t zero,
 }
 DECLARE_XAM_EXPORT1(NetDll_XNetQosServiceLookup, kNetworking, kStub);
 
-dword_result_t NetDll_XNetQosRelease(dword_t caller, pointer_t<uint8_t> qos) {
+dword_result_t NetDll_XNetQosRelease(dword_t caller, pointer_t<XNQOS> qos) {
   if (!qos) {
     return X_STATUS_INVALID_PARAMETER;
   }
