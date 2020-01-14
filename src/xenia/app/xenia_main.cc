@@ -282,6 +282,7 @@ int xenia_main(const std::vector<std::wstring>& args) {
         XELOGE("Unable to register cache0 path");
       } else {
         emulator->file_system()->RegisterSymbolicLink("cache0:", "\\CACHE0");
+        emulator->file_system()->RegisterSymbolicLink("cache:", "\\CACHE0");
       }
     }
 
