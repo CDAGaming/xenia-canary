@@ -563,19 +563,36 @@ dword_result_t NetDll_XNetDnsRelease(dword_t caller, pointer_t<XNDNS> dns) {
 }
 DECLARE_XAM_EXPORT1(NetDll_XNetDnsRelease, kNetworking, kStub);
 
-SHIM_CALL NetDll_XNetQosServiceLookup_shim(PPCContext* ppc_context,
-                                           KernelState* kernel_state) {
-  uint32_t caller = SHIM_GET_ARG_32(0);
-  uint32_t zero = SHIM_GET_ARG_32(1);
-  uint32_t event_handle = SHIM_GET_ARG_32(2);
-  uint32_t out_ptr = SHIM_GET_ARG_32(3);
+dword_result_t NetDll_XNetQosServiceLookup(dword_t caller, dword_t zero,
+                                           dword_t event_handle,
+                                           lpdword_t pqos) {
+  // TODO: actually implement this
+  if (pqos) {
+    // TODO: XNQOS struct? seems to be 0x20 bytes
+    auto out_guest = kernel_memory()->SystemHeapAlloc(0x20);
+    auto out = kernel_memory()->TranslateVirtual<uint8_t*>(out_guest);
+    memset(out, 0, 0x20);
+    *pqos = out_guest;
+  }
 
-  XELOGD("NetDll_XNetQosServiceLookup(%d, %d, %.8X, %.8X)", caller, zero,
-         event_handle, out_ptr);
-
-  // Non-zero is error.
-  SHIM_SET_RETURN_32(1);
+  if (event_handle) {
+    auto ev =
+        kernel_state()->object_table()->LookupObject<XEvent>(event_handle);
+    assert_not_null(ev);
+    ev->Set(0, false);
+  }
+  return 0;
 }
+DECLARE_XAM_EXPORT1(NetDll_XNetQosServiceLookup, kNetworking, kStub);
+
+dword_result_t NetDll_XNetQosRelease(dword_t caller, pointer_t<uint8_t> qos) {
+  if (!qos) {
+    return X_STATUS_INVALID_PARAMETER;
+  }
+  kernel_memory()->SystemHeapFree(qos.guest_address());
+  return 0;
+}
+DECLARE_XAM_EXPORT1(NetDll_XNetQosRelease, kNetworking, kStub);
 
 dword_result_t NetDll_XNetQosListen(dword_t caller, lpvoid_t id, lpvoid_t data,
                                     dword_t data_size, dword_t r7,
@@ -987,7 +1004,6 @@ DECLARE_XAM_EXPORT1(NetDll___WSAFDIsSet, kNetworking, kImplemented);
 
 void RegisterNetExports(xe::cpu::ExportResolver* export_resolver,
                         KernelState* kernel_state) {
-  SHIM_SET_MAPPING("xam.xex", NetDll_XNetQosServiceLookup, state);
 }
 
 }  // namespace xam
