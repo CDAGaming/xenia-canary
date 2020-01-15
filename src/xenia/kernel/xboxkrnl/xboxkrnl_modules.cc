@@ -15,6 +15,8 @@
 #include "xenia/kernel/xboxkrnl/xboxkrnl_private.h"
 #include "xenia/xbox.h"
 
+DECLARE_bool(mount_cache);
+
 namespace xe {
 namespace kernel {
 namespace xboxkrnl {
@@ -32,7 +34,7 @@ dword_result_t XexCheckExecutablePrivilege(dword_t privilege) {
     return 0;
   }
 
-  if (privilege == 0xB) {  // TitleInsecureUtilityDrive
+  if (cvars::mount_cache && privilege == 0xB) {  // TitleInsecureUtilityDrive
     // If this privilege is set, the cache-partition code baked into most
     // games skips a huge chunk of device-init code (registering a custom
     // STFC filesystem handler with the kernel, etc), and just symlinks the
