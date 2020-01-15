@@ -46,7 +46,8 @@ dword_result_t XamInputGetCapabilities(dword_t user_index, dword_t flags,
     return X_ERROR_BAD_ARGUMENTS;
   }
 
-  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0) {
+  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0 &&
+      (flags & XINPUT_FLAG_KEYBOARD) == 0) {
     // Ignore any query for other types of devices.
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
@@ -69,7 +70,8 @@ dword_result_t XamInputGetCapabilitiesEx(dword_t unk, dword_t user_index,
     return X_ERROR_BAD_ARGUMENTS;
   }
 
-  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0) {
+  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0 &&
+      (flags & XINPUT_FLAG_KEYBOARD) == 0) {
     // Ignore any query for other types of devices.
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
@@ -135,7 +137,8 @@ dword_result_t XamInputGetKeystroke(dword_t user_index, dword_t flags,
     return X_ERROR_BAD_ARGUMENTS;
   }
 
-  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0) {
+  if ((flags & 0xFF) && (flags & XINPUT_FLAG_GAMEPAD) == 0 &&
+      (flags & XINPUT_FLAG_KEYBOARD) == 0) {
     // Ignore any query for other types of devices.
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
@@ -172,7 +175,7 @@ dword_result_t XamInputGetKeystrokeEx(lpdword_t user_index_ptr, dword_t flags,
 
   auto input_system = kernel_state()->emulator()->input_system();
   auto result = input_system->GetKeystroke(user_index, flags, keystroke);
-  if (XSUCCEEDED(result)) {
+  if (!result) {
     *user_index_ptr = keystroke->user_index;
   }
   return result;

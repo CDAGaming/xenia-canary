@@ -47,6 +47,9 @@ class WinKeyInputDriver : public InputDriver {
   xe::global_critical_region global_critical_region_;
   std::queue<KeyEvent> key_events_;
 
+  // map of keys pressed for ToUnicode call - not guaranteed to be up-to-date
+  uint8_t key_map_[256];
+
   uint32_t packet_number_;
 
   uint32_t user_index_ = 1;

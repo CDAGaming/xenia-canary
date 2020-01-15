@@ -55,6 +55,8 @@ WinKeyInputDriver::WinKeyInputDriver(xe::ui::Window* window)
     key.repeat_count = evt->repeat_count();
     key_events_.push(key);
   });
+
+  memset(key_map_, 0, 256);
 }
 
 WinKeyInputDriver::~WinKeyInputDriver() = default;
@@ -289,6 +291,8 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
     key_events_.pop();
   }
 
+  key_map_[evt.vkey] = evt.transition ? 0xFF : 0;
+
   if (cvars::keyboard_passthru) {
     virtual_key = evt.vkey;
   } else {
@@ -404,9 +408,9 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
     // Handle keydown & keyup:
     if (cvars::keyboard_keyup || virtual_key == VK_SHIFT) {
       if (evt.transition == false) {
-        keystroke_flags |= 0x0002;
+        keystroke_flags |= 0x0002;  // XINPUT_KEYSTROKE_KEYUP
       } else if (evt.transition == true) {
-        keystroke_flags |= 0x0001;
+        keystroke_flags |= 0x0001;  // XINPUT_KEYSTROKE_KEYDOWN
       }
     } else {
       if (!cvars::keyboard_keyup) {
@@ -421,6 +425,10 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
     }
 
     if (keystroke_flags != 0) {
+      WCHAR buf;
+      if (ToUnicode(virtual_key, 0, key_map_, &buf, 1, 0) == 1) {
+        unicode = buf;
+      }
       result = X_ERROR_SUCCESS;
     }
   }
