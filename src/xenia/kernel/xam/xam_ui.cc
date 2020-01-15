@@ -401,9 +401,6 @@ dword_result_t XamShowDeviceSelectorUI(dword_t user_index, dword_t content_type,
   kernel_state()->BroadcastNotification(0x1, 1);
   // Broadcast XN_SYS_UI = true
   kernel_state()->BroadcastNotification(0x9, true);
-  // broadcast HDD changed 
-  kernel_state()->BroadcastNotification(0xB, 0);
-  kernel_state()->BroadcastNotification(0xB, 1);
 
   auto ui_fn = [content_type, device_id_ptr, overlapped]() {
     XELOGW("XamShowDeviceSelectorUI Content_type:(%X) device_id_ptr: %.8X overlapped:(%X)",
