@@ -383,33 +383,24 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
     }
   }
 
-  if (!cvars::keyboard_passthru) {
-    if (virtual_key != 0) {
-      if (evt.transition == true) {
-        keystroke_flags |= 0x0001;  // XINPUT_KEYSTROKE_KEYDOWN
-      } else if (evt.transition == false) {
-        keystroke_flags |= 0x0002;  // XINPUT_KEYSTROKE_KEYUP
-      }
-
+  if (virtual_key != 0) {
+    if (evt.transition == true) {
+      keystroke_flags |= 0x0001;  // XINPUT_KEYSTROKE_KEYDOWN
       if (evt.prev_state == evt.transition) {
         keystroke_flags |= 0x0004;  // XINPUT_KEYSTROKE_REPEAT
       }
-
-      result = X_ERROR_SUCCESS;
-    }
-  } else {
-    // Handle keydown & keyup:
-    if (evt.transition == false) {
+    } else if (evt.transition == false) {
       keystroke_flags |= 0x0002;  // XINPUT_KEYSTROKE_KEYUP
-    } else if (evt.transition == true) {
-      keystroke_flags |= 0x0001;  // XINPUT_KEYSTROKE_KEYDOWN
     }
 
-    if (keystroke_flags != 0) {
+    if (cvars::keyboard_passthru) {
       WCHAR buf;
       if (ToUnicode(virtual_key, 0, key_map_, &buf, 1, 0) == 1) {
         unicode = buf;
       }
+    }
+
+    if (keystroke_flags) {
       result = X_ERROR_SUCCESS;
     }
   }
