@@ -5,7 +5,7 @@
 </p>
 <h1 align="center">Xenia - Xbox 360 Emulator</h1>
 
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5fs0ia3031l9rbpo/branch/canary?svg=true)](https://ci.appveyor.com/project/chris-hawley/xenia-canary/branch/canary) [![Azure Build Status](https://dev.azure.com/xenia-canary/xenia-canary/_apis/build/status/xenia-canary.xenia-canary?branchName=canary)](https://dev.azure.com/xenia-canary/xenia-canary/_build/latest?definitionId=1&branchName=canary) [![Actions Status](https://github.com/xenia-canary/xenia-canary/workflows/main/badge.svg)](https://github.com/xenia-canary/xenia-canary/actions)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5fs0ia3031l9rbpo/branch/canary?svg=true)](https://ci.appveyor.com/project/chris-hawley/xenia-canary/branch/canary)<!--[![Azure Build Status](https://dev.azure.com/xenia-canary/xenia-canary/_apis/build/status/xenia-canary.xenia-canary?branchName=canary)](https://dev.azure.com/xenia-canary/xenia-canary/_build/latest?definitionId=1&branchName=canary)-->[![Actions Status](https://github.com/xenia-canary/xenia-canary/workflows/main/badge.svg)](https://github.com/xenia-canary/xenia-canary/actions)
 <!--[Linux](https://travis-ci.org/xenia-project/xenia) | [![Build status](https://travis-ci.org/xenia-project/xenia.svg?branch=master)](https://travis-ci.org/xenia-project/xenia)-->
 
 Xenia Canary is an experimental fork of Xenia. For more information, see the
