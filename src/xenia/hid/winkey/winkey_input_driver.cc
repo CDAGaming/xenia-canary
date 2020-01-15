@@ -21,6 +21,13 @@ DEFINE_bool(keyboard_passthru, false,
             "Xenia keybinds, eg. H to show FPS, will still be in effect!)",
             "HID");
 
+DEFINE_bool(
+    keyboard_keyup, true,
+    "When using passthru, sends keyup events when keys are released. Some "
+    "games like SR1 don't like "
+    "seeing these, but dash won't work properly without them",
+    "HID");
+
 namespace xe {
 namespace hid {
 namespace winkey {
@@ -394,20 +401,22 @@ X_RESULT WinKeyInputDriver::GetKeystroke(uint32_t user_index, uint32_t flags,
       result = X_ERROR_SUCCESS;
     }
   } else {
-    // Handle keydown/keyup for VK_SHIFT
-    if (virtual_key == VK_SHIFT) {
+    // Handle keydown & keyup:
+    if (cvars::keyboard_keyup || virtual_key == VK_SHIFT) {
       if (evt.transition == false) {
         keystroke_flags |= 0x0002;
       } else if (evt.transition == true) {
         keystroke_flags |= 0x0001;
       }
-    }
-
-    // Only handle keydown for other keys, since some stupid games will count
-    // keyup as another keypress (seen in SR1..)
-    if (virtual_key != 0 && virtual_key != 0x10) {
-      if (evt.transition) {
-        keystroke_flags |= 0x0001;
+    } else {
+      if (!cvars::keyboard_keyup) {
+        // Only handle keydown, since some stupid games will count keyup as
+        // another keypress (seen in SR1..)
+        if (virtual_key != 0 && virtual_key != VK_SHIFT) {
+          if (evt.transition) {
+            keystroke_flags |= 0x0001;
+          }
+        }
       }
     }
 
