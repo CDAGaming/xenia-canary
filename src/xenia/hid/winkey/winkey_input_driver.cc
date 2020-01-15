@@ -94,7 +94,7 @@ X_STATUS WinKeyInputDriver::Setup(
 
 X_RESULT WinKeyInputDriver::GetCapabilities(uint32_t user_index, uint32_t flags,
                                             X_INPUT_CAPABILITIES* out_caps) {
-  if (user_index != user_index_) {
+  if (!cvars::keyboard_passthru && user_index != user_index_) {
     return X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
