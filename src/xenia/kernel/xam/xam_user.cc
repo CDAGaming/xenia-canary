@@ -286,7 +286,9 @@ dword_result_t XamUserReadProfileSettings(
   }
 
   uint32_t buffer_size = static_cast<uint32_t>(*buffer_size_ptr);
-  *buffer_size_ptr = size_needed;
+  if (buffer_size < size_needed) {
+    *buffer_size_ptr = size_needed;
+  }
 
   if (!buffer_ptr || buffer_size < size_needed) {
     if (overlapped_ptr) {
