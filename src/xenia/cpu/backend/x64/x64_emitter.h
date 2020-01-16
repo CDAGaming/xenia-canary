@@ -114,6 +114,8 @@ enum XmmConst {
   XMMIntMaxPD,
   XMMPosIntMinPS,
   XMMQNaN,
+  XMMSelectTableBase,
+  XMMSelectTableLast,
 };
 
 // Unfortunately due to the design of xbyak we have to pass this to the ctor.
@@ -210,6 +212,7 @@ class X64Emitter : public Xbyak::CodeGenerator {
   void MovMem64(const Xbyak::RegExp& addr, uint64_t v);
 
   Xbyak::Address GetXmmConstPtr(XmmConst id);
+  uintptr_t GetXmmRawAddress(XmmConst id);
   void LoadConstantXmm(Xbyak::Xmm dest, float v);
   void LoadConstantXmm(Xbyak::Xmm dest, double v);
   void LoadConstantXmm(Xbyak::Xmm dest, const vec128_t& v);
