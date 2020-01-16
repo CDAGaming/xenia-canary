@@ -36,7 +36,7 @@ legally purchased devices and games and information made public on the internet
 See the [Quickstart](https://github.com/xenia-project/xenia/wiki/Quickstart) page.
 
 ## Download
-[Windows](https://ci.appveyor.com/api/projects/chris-hawley/xenia-canary/artifacts/xenia-canary.zip?branch=canary&job=Configuration:%20Release&pr=false)
+[Windows](https://github.com/xenia-canary/xenia-canary/releases/latest/download/xenia-canary.zip)
 
 <!--Quite a few real games run. Quite a few don't.
 See the [Game compatibility list](https://github.com/xenia-project/game-compatibility/issues)
