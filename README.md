@@ -3,7 +3,7 @@
         <img height="120px" src="https://raw.githubusercontent.com/xenia-canary/xenia-canary/canary/assets/icon/256.png" />
     </a>
 </p>
-<h1 align="center">Xenia - Xbox 360 Emulator</h1>
+<h1 align="center">Xenia Canary - Xbox 360 Emulator</h1>
 
 [![Actions Status](https://github.com/xenia-canary/xenia-canary/workflows/main/badge.svg)](https://github.com/xenia-canary/xenia-canary/actions)
 [![Discord](https://img.shields.io/discord/533275703882547200?logo=discord)](https://discord.gg/jydhhRQ)
