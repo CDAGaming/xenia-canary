@@ -60,7 +60,7 @@ jobs:
         path: artifacts
 
     - name: Create Release
-      if: github.event.action != 'pull_request' && matrix.cpu_arch == 'AVX'
+      if: github.event.action != 'pull_request' && github.ref == 'refs/heads/canary' && matrix.cpu_arch == 'AVX'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -74,7 +74,7 @@ jobs:
           - Second Change
 
     - name: Upload Release Asset
-      if: github.event.action != 'pull_request' && matrix.cpu_arch == 'AVX'
+      if: github.event.action != 'pull_request' && github.ref == 'refs/heads/canary' && matrix.cpu_arch == 'AVX'
       id: upload-release-asset
       uses: actions/upload-release-asset@v1.0.1
       env:
