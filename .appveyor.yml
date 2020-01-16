@@ -36,7 +36,7 @@ install:
   - xb setup
 
 build_script:
-  - xb build --target=src\xenia-app --target=tests\xenia-cpu-ppc-tests --target=src\xenia-vfs-dump
+  - xb build --target=src\xenia-app --target=src\xenia-vfs-dump
 
 after_build:
   - |-
@@ -46,8 +46,9 @@ after_build:
       7z a ..\..\..\..\xenia-vfs-dump-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-vfs-dump.exe
       cd ..\..\..\..
 
+test: off
+
 artifacts:
   - path: '*.zip'
-  - path: xenia-cpu-ppc-test.log
 
 deploy: off
