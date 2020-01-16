@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-    - '*'
+    - 'canary-test'
     exclude:
     - gh-pages
     - master
@@ -16,7 +16,7 @@ trigger:
 pr:
   branches:
     include:
-    - '*'
+    - 'canary-test'
     exclude:
     - gh-pages
     - master
@@ -47,7 +47,7 @@ jobs:
   - script: xb setup
     displayName: 'Setup'
 
-  - script: xb build --cpu_arch=$(cpu_arch) --target=src\xenia-app --target=tests\xenia-cpu-ppc-tests --target=src\xenia-vfs-dump
+  - script: xb build --cpu_arch=$(cpu_arch) --target=src\xenia-app --target=src\xenia-vfs-dump
     displayName: 'Build'
 
   - script: |
