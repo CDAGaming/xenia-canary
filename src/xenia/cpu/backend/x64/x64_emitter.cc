@@ -737,7 +737,9 @@ static const vec128_t xmm_consts[] = {
     /* XMMIntMax              */ vec128i(INT_MAX),
     /* XMMIntMaxPD            */ vec128d(INT_MAX),
     /* XMMPosIntMinPS         */ vec128f((float)0x80000000u),
-    /* XMMQNaN                */ vec128i(0x7FC00000u),
+    /* XMMQNaN                */ vec128i(0x7FC00000u), 
+        /*XMMSelectTableBase */vec128i(0),
+        /*XMMSelectTableLast*/ vec128i(-1)
 };
 
 // First location to try and place constants.
@@ -776,13 +778,16 @@ void X64Emitter::FreeConstData(uintptr_t data) {
   memory::DeallocFixed(reinterpret_cast<void*>(data), 0,
                        memory::DeallocationType::kRelease);
 }
-
+uintptr_t X64Emitter::GetXmmRawAddress(XmmConst id) {
+  return backend_->emitter_data() + sizeof(vec128_t) * id;
+}
 Xbyak::Address X64Emitter::GetXmmConstPtr(XmmConst id) {
   // Load through fixed constant table setup by PlaceConstData.
   // It's important that the pointer is not signed, as it will be sign-extended.
-  return ptr[reinterpret_cast<void*>(backend_->emitter_data() +
-                                     sizeof(vec128_t) * id)];
+  return ptr[GetXmmRawAddress(id)];
 }
+
+
 
 // Implies possible StashXmm(0, ...)!
 void X64Emitter::LoadConstantXmm(Xbyak::Xmm dest, const vec128_t& v) {
