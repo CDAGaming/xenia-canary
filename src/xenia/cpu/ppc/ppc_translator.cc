@@ -81,6 +81,10 @@ PPCTranslator::PPCTranslator(PPCFrontend* frontend) : frontend_(frontend) {
   // compiler_->AddPass(new passes::ValueReductionPass());
   // if (validate) compiler_->AddPass(new passes::ValidationPass());
 
+  //RepetitiveComputationMergerPass ala Chrispy
+  compiler_->AddPass(std::make_unique<passes::RepetitiveComputationMergerPass>());
+  if (validate) compiler_->AddPass(std::make_unique<passes::ValidationPass>());
+
   // Register allocation for the target backend.
   // Will modify the HIR to add loads/stores.
   // This should be the last pass before finalization, as after this all

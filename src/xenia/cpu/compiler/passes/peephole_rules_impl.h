@@ -28,8 +28,8 @@ static bool do_cvt_opt(HIRBuilder* builder, Block* block) {
     if (target_next_use->src1.value != insn->dest) continue;
 
     if (target_next_use->dest->type != insn->src1.value->type ||
-        !is_rvalue(target_next_use->dest))
-      continue;
+	!is_rvalue(target_next_use->dest)) continue;
+
     ++n_cvt_opts;
     make_assignment(target_next_use, insn->src1);
 
@@ -465,25 +465,24 @@ Re-enable these one by one or add flags to control them until each is proven to 
 
 */
 #if 0
-static const optblock_pass_t g_passes[] = {do_cvt_opt,
-                                           do_vector_shift_opt,
-                                           elim_useless_ctx_stores<false>,
-                                           replace_assignment_uses,
-                                           elim_useless_ctx_stores<true>,
-                                           optimize_repeated_loads,
-                                           and1_optimizer,
-                                           trunc_ext_optimizer,
-                                           unused_conversion_eliminator,
-                                           useless_operation_eliminator,
-                                           rlwinm_sanitizer,
-                                           rlwinm_sanitizer_useless_or,
-                                           ssa_merger,
-
-                                           signbit_rol_optimizer,
-                                           rol_bitextract_optimizer,
-                                           shl_shr_mask_optimizer,
-                                           redundant_local_slot_load_optimizer,
-                                           nop_deleter};
+static const optblock_pass_t g_passes[] = {do_cvt_opt, // idk
+                                           elim_useless_ctx_stores<false>, // idk
+                                           elim_useless_ctx_stores<true>, // idk
+                                           redundant_local_slot_load_optimizer, //ok
+                                           do_vector_shift_opt,//
+                                           replace_assignment_uses, //
+                                           optimize_repeated_loads, //ok
+                                           and1_optimizer, // instability?
+                                           trunc_ext_optimizer, // ok
+                                           unused_conversion_eliminator, //ok
+                                           useless_operation_eliminator, //bad
+                                           rlwinm_sanitizer, // maybe
+                                           rlwinm_sanitizer_useless_or, //ok
+                                           ssa_merger, //bad
+                                           signbit_rol_optimizer, //artifacts?
+                                           rol_bitextract_optimizer, //artifacts?
+                                           shl_shr_mask_optimizer, //ok
+                                           nop_deleter}; //ok
 void dump_opts() {
   FILE* lel = fopen("Optdump.txt", "w");
 
@@ -509,12 +508,40 @@ void dump_opts() {
   fclose(lel);
 }
 #else
-static const optblock_pass_t g_passes[] = {rlwinm_sanitizer_useless_or,
-                                           rlwinm_sanitizer,    
+static const optblock_pass_t g_passes[] = { redundant_local_slot_load_optimizer,
+                                            do_vector_shift_opt,
+                                            shl_shr_mask_optimizer,
+                                            rlwinm_sanitizer_useless_or,
+                                            and1_optimizer,
+                                            trunc_ext_optimizer,
+                                            unused_conversion_eliminator,
+                                            optimize_repeated_loads,
+                                            replace_assignment_uses,
+                                            rlwinm_sanitizer,
+                                            nop_deleter };
 
-    nop_deleter,
-    rol_bitextract_optimizer,   
-    signbit_rol_optimizer, 
-    shl_shr_mask_optimizer
-};
+void dump_opts() {
+  FILE* lel = fopen("Optdump.txt", "w");
+
+  fprintf(
+      lel,
+      "Optimized %lld converts\nOptimized %lld vector shifts\nOptimized %lld "
+      "context stores\nOptimized away %lld useless assignments\nOptimized "
+      "away "
+      "%lld redundant loads."
+      "\nOptimized away %lld and 1 instructions\nOptimized away %lld useless "
+      "truncate-extends\nEliminated %lld unused operation "
+      "results.\nOptimized away %lld no-op operations.\nLowered %lld left "
+      "rotates to left shifts.\nRemoved %lld useless rlwinm rotate-or "
+      "sequences.\nShortened %lld assignment chains\nOptimized %lld signbit "
+      "rotate lefts.\nOptimized %lld rol bitextracts.\nConverted %lld shift "
+      "sequences to bitmasks.\n Optimized %lld redundant local loads.",
+      n_cvt_opts, n_vec_shift_opts, n_useless_ctx_store_opts,
+      n_replaced_assignments, n_replaced_loads, n_and1s_optimized, n_trunc_exts,
+      n_eliminated_unused_conversion_results, n_useless_operations,
+      n_rotates_lowered_to_shifts, n_useless_rlwinm_ors_removed, n_ssa_merges,
+      n_signbit_rols_optimized, n_rol_bitextracts_optimized,
+      n_shl_shr_masks_gen, n_redundant_loads_local);
+  fclose(lel);
+}
 #endif

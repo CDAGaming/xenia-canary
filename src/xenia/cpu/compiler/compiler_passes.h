@@ -21,6 +21,7 @@
 #include "xenia/cpu/compiler/passes/finalization_pass.h"
 #include "xenia/cpu/compiler/passes/memory_sequence_combination_pass.h"
 #include "xenia/cpu/compiler/passes/register_allocation_pass.h"
+#include "xenia/cpu/compiler/passes/repetitive_computation_merger_pass.h"
 #include "xenia/cpu/compiler/passes/simplification_pass.h"
 #include "xenia/cpu/compiler/passes/validation_pass.h"
 #include "xenia/cpu/compiler/passes/value_reduction_pass.h"
