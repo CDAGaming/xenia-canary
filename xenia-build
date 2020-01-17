@@ -598,7 +598,7 @@ class BaseBuildCommand(Command):
             '--config', choices=['release', 'debug', 'checked'], default='release',
             type=str.lower, help='Chooses the build configuration.')
         self.parser.add_argument(
-            '--cpu_arch', choices=['sse2', 'avx', 'avx2', 'avx512'], default='sse2',
+            '--cpu_arch', choices=['avx', 'avx2', 'avx512'], default='avx',
             type=str.lower, help='Chooses the CPU architecture.')
         self.parser.add_argument(
             '--target', action='append', default=[],

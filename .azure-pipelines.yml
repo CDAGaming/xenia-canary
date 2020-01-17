@@ -7,8 +7,8 @@ trigger:
     - master
   paths:
     exclude:
-    - docs/*
-    - .github/*
+    - docs/**
+    - .github/**
     - LICENSE
     - README.md
     - .appveyor.yml
@@ -22,8 +22,8 @@ pr:
     - master
   paths:
     exclude:
-    - docs/*
-    - .github/*
+    - docs/**
+    - .github/**
     - LICENSE
     - README.md
     - .appveyor.yml
@@ -35,8 +35,6 @@ jobs:
     vmImage: windows-latest
   strategy:
     matrix:
-      SSE2:  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
-        cpu_arch: SSE2  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
       AVX:
         cpu_arch: AVX
       AVX2:
@@ -52,7 +50,6 @@ jobs:
 
   - script: |
       cd build\bin\Windows\Release
-      ren xenia.exe xenia-canary.exe
       7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-canary.exe 
       7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-vfs-dump.exe 
     displayName: 'Create archives'
