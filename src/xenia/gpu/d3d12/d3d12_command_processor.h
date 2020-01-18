@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "xenia/base/cvar.h"
 #include "xenia/gpu/command_processor.h"
 #include "xenia/gpu/d3d12/d3d12_graphics_system.h"
 #include "xenia/gpu/d3d12/deferred_command_list.h"
@@ -30,6 +31,9 @@
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/ui/d3d12/d3d12_context.h"
 #include "xenia/ui/d3d12/pools.h"
+
+DECLARE_int32(internal_tile_height);
+DECLARE_int32(internal_tile_width);
 
 namespace xe {
 namespace gpu {
@@ -332,13 +336,18 @@ class D3D12CommandProcessor : public CommandProcessor {
   uint8_t* gamma_ramp_upload_mapping_ = nullptr;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT gamma_ramp_footprints_[kQueueFrames * 2];
 
-  static constexpr uint32_t kSwapTextureWidth = 1920;
-  static constexpr uint32_t kSwapTextureHeight = 1080;
+  static constexpr uint32_t kSwapTextureWidth() {
+    return cvars::internal_tile_width;
+  }
+  static constexpr uint32_t kSwapTextureHeight() {
+    return cvars::internal_tile_height;
+  }
+
   inline std::pair<uint32_t, uint32_t> GetSwapTextureSize() const {
     if (texture_cache_->IsResolutionScale2X()) {
-      return std::make_pair(kSwapTextureWidth * 2, kSwapTextureHeight * 2);
+      return std::make_pair(kSwapTextureWidth() * 2, kSwapTextureHeight() * 2);
     }
-    return std::make_pair(kSwapTextureWidth, kSwapTextureHeight);
+    return std::make_pair(kSwapTextureWidth(), kSwapTextureHeight());
   }
   ID3D12Resource* swap_texture_ = nullptr;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT swap_texture_copy_footprint_;

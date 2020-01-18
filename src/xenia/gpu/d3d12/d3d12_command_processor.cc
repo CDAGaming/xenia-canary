@@ -63,8 +63,8 @@ namespace d3d12 {
 constexpr uint32_t D3D12CommandProcessor::kQueueFrames;
 constexpr uint32_t
     D3D12CommandProcessor::RootExtraParameterIndices::kUnavailable;
-constexpr uint32_t D3D12CommandProcessor::kSwapTextureWidth;
-constexpr uint32_t D3D12CommandProcessor::kSwapTextureHeight;
+// constexpr uint32_t D3D12CommandProcessor::kSwapTextureWidth();
+// constexpr uint32_t D3D12CommandProcessor::kSwapTextureHeight();
 constexpr uint32_t D3D12CommandProcessor::kScratchBufferSizeIncrement;
 
 D3D12CommandProcessor::D3D12CommandProcessor(
