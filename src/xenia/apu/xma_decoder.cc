@@ -285,7 +285,9 @@ void XmaDecoder::WriteRegister(uint32_t addr, uint32_t value) {
   } else {
     switch (r) {
       default: {
-        XELOGE("XMA: Write to unhandled register (%.4X): %.8X", r, value);
+        if (r != 0x601) {
+          XELOGE("XMA: Write to unhandled register (%.4X): %.8X", r, value);
+        }
         break;
       }
 #pragma warning(suppress : 4065)
