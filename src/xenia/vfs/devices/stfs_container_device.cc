@@ -107,6 +107,8 @@ StfsContainerDevice::Error StfsContainerDevice::MapFiles() {
     return header_result;
   }
 
+  mmap_total_size_ += header_map->size();
+
   // If the STFS package is a single file, the header is self contained and
   // we don't need to map any extra files.
   // NOTE: data_file_count is 0 for STFS and 1 for SVOD
@@ -145,8 +147,10 @@ StfsContainerDevice::Error StfsContainerDevice::MapFiles() {
     if (!data) {
       XELOGI("Failed to map SVOD file %ls.", path.c_str());
       mmap_.clear();
+      mmap_total_size_ = 0;
       return Error::kErrorReadError;
     }
+    mmap_total_size_ += data->size();
     mmap_.emplace(std::make_pair(i, std::move(data)));
   }
   XELOGI("SVOD successfully mapped %d files.", fragment_files.size());

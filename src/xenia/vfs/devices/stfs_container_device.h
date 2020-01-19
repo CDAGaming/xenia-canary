@@ -437,7 +437,7 @@ class StfsContainerDevice : public Device {
   Entry* ResolvePath(const std::string& path) override;
 
   uint32_t total_allocation_units() const override {
-    return uint32_t(mmap_total_size_ / sectors_per_allocation_unit() /
+    return uint32_t(data_size() / sectors_per_allocation_unit() /
                     bytes_per_sector());
   }
   uint32_t available_allocation_units() const override { return 0; }
@@ -496,7 +496,9 @@ class StfsContainerDevice : public Device {
 
   std::wstring local_path_;
   std::map<size_t, std::unique_ptr<MappedMemory>> mmap_;
-  size_t mmap_total_size_;
+  size_t mmap_total_size_ = 0;
+
+  size_t data_size() const { return mmap_total_size_ - sizeof(StfsHeader); }
 
   uint32_t blocks_per_hash_table_ = 1;
   uint32_t block_step_[2] = {0xAB, 0x718F};
