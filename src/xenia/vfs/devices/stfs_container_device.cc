@@ -543,7 +543,6 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
       // Fill in all block records.
       // It's easier to do this now and just look them up later, at the cost
       // of some memory. Nasty chain walk.
-      // TODO(benvanik): optimize if flag 0x40 (consecutive) is set.
       if (entry->attributes() & X_FILE_ATTRIBUTE_NORMAL) {
         uint32_t block_index = start_block_index;
         size_t remaining_size = file_size;
@@ -555,8 +554,18 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
           size_t offset = STFSDataBlockToOffset(block_index);
           entry->block_list_.push_back({0, offset, block_size});
           remaining_size -= block_size;
-          auto block_hash = STFSGetLevel0HashEntry(data, block_index);
-          block_index = block_hash.level0_next_block();
+
+          // If file entry has contiguous flag (0x40) set, skip reading next
+          // block from hash table and just use block_index + 1 (but we'll only
+          // do this if it's a read-only package, just in case the flag is in
+          // error)
+          if ((filename_length_flags & 0x40) &&
+              header_.metadata.stfs_volume_descriptor.flags.read_only_format) {
+            block_index++;
+          } else {
+            auto block_hash = STFSGetLevel0HashEntry(data, block_index);
+            block_index = block_hash.level0_next_block();
+          }
         }
       }
 
