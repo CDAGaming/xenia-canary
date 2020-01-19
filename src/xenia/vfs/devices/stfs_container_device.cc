@@ -13,6 +13,7 @@
 #include <queue>
 #include <vector>
 
+#include "third_party/crypto/TinySHA1.hpp"
 #include "xenia/base/logging.h"
 #include "xenia/base/math.h"
 #include "xenia/vfs/devices/stfs_container_entry.h"
@@ -566,6 +567,10 @@ StfsContainerDevice::Error StfsContainerDevice::ReadSTFS() {
     table_block_index = block_hash.level0_next_block();
   }
 
+  // At this point we've read in all the data we need from the hash tables
+  // Let's free some mem by clearing the cache we made.
+  cached_tables_.clear();
+
   if (all_entries.size() > 0) {
     return Error::kSuccess;
   }
@@ -640,7 +645,7 @@ size_t StfsContainerDevice::STFSDataBlockToBackingHashBlockOffset(
 
 StfsHashEntry StfsContainerDevice::STFSGetLevelNHashEntry(
     const uint8_t* map_ptr, uint32_t block_index, uint32_t level,
-    bool secondary_block) {
+    uint8_t* hash_in_out, bool secondary_block) {
   uint32_t record = block_index;
   for (uint32_t i = 0; i < level; i++) {
     record = record / kSTFSDataBlocksPerHashLevel[0];
@@ -654,10 +659,48 @@ StfsHashEntry StfsContainerDevice::STFSGetLevelNHashEntry(
     hash_offset += bytes_per_sector();  // read from this tables secondary block
   }
 
-  const uint8_t* hash_data = map_ptr + hash_offset;
+  bool invalid_table = std::find(invalid_tables_.begin(), invalid_tables_.end(),
+                                 hash_offset) != invalid_tables_.end();
 
-  auto* entry = (StfsHashEntry*)(hash_data + record * 0x18);
-  return *entry;
+  if (!cached_tables_.count(hash_offset)) {
+    // Cache the table in memory, since it's likely to be needed again
+    auto hash_data = (const StfsHashTable*)(map_ptr + hash_offset);
+    cached_tables_[hash_offset] = *hash_data;
+
+    // If hash is provided we'll try comparing it to the hash of this table
+    if (hash_in_out && !invalid_table) {
+      sha1::SHA1 sha;
+      sha.processBytes(hash_data, 0x1000);
+
+      uint8_t digest[0x14];
+      sha.finalize(digest);
+      if (memcmp(digest, hash_in_out, 0x14)) {
+        XELOGW(
+            "STFSGetLevelNHashEntry: level %d hash table at 0x%llX "
+            "is corrupt (hash mismatch)!",
+            level, hash_offset);
+        invalid_table = true;
+        invalid_tables_.push_back(hash_offset);
+      }
+    }
+  }
+
+  if (invalid_table) {
+    // If table is corrupt there's no use reading invalid data, lets try
+    // salvaging things by providing next block as block + 1, should work fine
+    // for LIVE/PIRS packages hopefully.
+    StfsHashEntry entry = {0};
+    entry.level0_next_block(block_index + 1);
+    return entry;
+  }
+
+  StfsHashTable& hash_table = cached_tables_[hash_offset];
+
+  auto& entry = hash_table.entries[record];
+  if (hash_in_out) {
+    memcpy(hash_in_out, entry.sha1, 0x14);
+  }
+  return entry;
 }
 
 StfsHashEntry StfsContainerDevice::STFSGetLevel0HashEntry(
@@ -668,36 +711,42 @@ StfsHashEntry StfsContainerDevice::STFSGetLevel0HashEntry(
     use_secondary_block = true;
   }
 
+  // Copy our top hash table hash into the buffer...
+  uint8_t hash[0x14];
+  memcpy(hash, header_.metadata.stfs_volume_descriptor.root_hash, 0x14);
+
   // Check upper hash table levels to find which table (primary/secondary) to
   // use.
-  // We should be able to skip this if it's a read-only package, since the hash
-  // tables in those only use one block
-  if (!header_.metadata.stfs_volume_descriptor.flags.read_only_format) {
-    auto num_blocks =
-        header_.metadata.stfs_volume_descriptor.allocated_block_count;
 
-    if (num_blocks >= kSTFSDataBlocksPerHashLevel[1]) {
-      // Get the L2 entry for the block
-      auto l2_entry =
-          STFSGetLevelNHashEntry(map_ptr, block_index, 2, use_secondary_block);
-      use_secondary_block = false;
-      if (l2_entry.levelN_activeindex()) {
-        use_secondary_block = true;
-      }
-    }
+  // We used to always skip this if package is read-only, but it seems there's
+  // a lot of LIVE/PIRS packages with corrupt hash tables out there.
+  // Checking the hash table hashes is the only way to detect (and then
+  // possibly salvage) these.
+  auto num_blocks =
+      header_.metadata.stfs_volume_descriptor.allocated_block_count;
 
-    if (num_blocks >= kSTFSDataBlocksPerHashLevel[0]) {
-      // Get the L1 entry for this block
-      auto l1_entry =
-          STFSGetLevelNHashEntry(map_ptr, block_index, 1, use_secondary_block);
-      use_secondary_block = false;
-      if (l1_entry.levelN_activeindex()) {
-        use_secondary_block = true;
-      }
+  if (num_blocks >= kSTFSDataBlocksPerHashLevel[1]) {
+    // Get the L2 entry for the block
+    auto l2_entry = STFSGetLevelNHashEntry(map_ptr, block_index, 2, hash,
+                                           use_secondary_block);
+    use_secondary_block = false;
+    if (l2_entry.levelN_activeindex()) {
+      use_secondary_block = true;
     }
   }
 
-  return STFSGetLevelNHashEntry(map_ptr, block_index, 0, use_secondary_block);
+  if (num_blocks >= kSTFSDataBlocksPerHashLevel[0]) {
+    // Get the L1 entry for this block
+    auto l1_entry = STFSGetLevelNHashEntry(map_ptr, block_index, 1, hash,
+                                           use_secondary_block);
+    use_secondary_block = false;
+    if (l1_entry.levelN_activeindex()) {
+      use_secondary_block = true;
+    }
+  }
+
+  return STFSGetLevelNHashEntry(map_ptr, block_index, 0, hash,
+                                use_secondary_block);
 }
 
 uint32_t StfsContainerDevice::ReadMagic(const std::wstring& path) {

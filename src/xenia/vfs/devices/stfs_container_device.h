@@ -32,8 +32,11 @@ struct StfsVolumeDescriptor {
   uint8_t version;
   union {
     struct {
-      uint8_t read_only_format : 1;
-      uint8_t root_active_index : 1;
+      uint8_t read_only_format : 1;  // if set, only uses a single backing-block
+                                     // per hash table (no resiliency),
+                                     // otherwise uses two
+      uint8_t root_active_index : 1;  // if set, uses secondary backing-block
+                                      // for the highest-level hash table
       uint8_t directory_overallocated : 1;
       uint8_t directory_index_bounds_valid : 1;
     };
@@ -70,6 +73,11 @@ struct StfsHashEntry {
 
   // If this is a level0 entry, this points to the next block in the chain
   uint32_t level0_next_block() { return info3 | (info2 << 8) | (info1 << 16); }
+  void level0_next_block(uint32_t value) {
+    info3 = static_cast<uint8_t>(value & 0xFF);
+    info2 = static_cast<uint8_t>((value >> 8) & 0xFF);
+    info1 = static_cast<uint8_t>((value >> 16) & 0xFF);
+  }
 
   // If this is level 1 or 2, this says whether the hash table this entry refers
   // to is using the secondary block or not
@@ -78,6 +86,13 @@ struct StfsHashEntry {
   bool levelN_writeable() { return info0 & 0x80; }
 };
 static_assert_size(StfsHashEntry, 0x18);
+
+struct StfsHashTable {
+  StfsHashEntry entries[0xAA];
+  xe::be<uint32_t> num_blocks;  // "committed" blocks
+  uint8_t padding[12];
+};
+static_assert_size(StfsHashTable, 0x1000);
 
 /* SVOD */
 struct SvodDeviceDescriptor {
@@ -489,6 +504,7 @@ class StfsContainerDevice : public Device {
 
   StfsHashEntry STFSGetLevelNHashEntry(const uint8_t* map_ptr,
                                        uint32_t block_index, uint32_t level,
+                                       uint8_t* hash_in_out = nullptr,
                                        bool secondary_block = false);
 
   StfsHashEntry STFSGetLevel0HashEntry(const uint8_t* map_ptr,
@@ -502,6 +518,11 @@ class StfsContainerDevice : public Device {
 
   uint32_t blocks_per_hash_table_ = 1;
   uint32_t block_step_[2] = {0xAB, 0x718F};
+
+  // Any STFS hash tables that we read from will be cached here, since it's
+  // likely that they'll be needed again
+  std::map<size_t, StfsHashTable> cached_tables_;
+  std::vector<size_t> invalid_tables_;
 
   size_t base_offset_;
   size_t magic_offset_;
