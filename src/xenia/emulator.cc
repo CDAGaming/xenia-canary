@@ -312,6 +312,7 @@ X_STATUS Emulator::LaunchXexFile(std::wstring path) {
   auto file_name = xe::find_name_from_path(path);
 
   // Launch the game.
+  title_packaged_ = false;
   std::string fs_path = "game:\\" + xe::to_string(file_name);
   return CompleteLaunch(path, fs_path);
 }
@@ -335,6 +336,7 @@ X_STATUS Emulator::LaunchDiscImage(std::wstring path) {
   file_system_->RegisterSymbolicLink("d:", mount_path);
 
   // Launch the game.
+  title_packaged_ = false;
   auto module_path(FindLaunchModule());
   return CompleteLaunch(path, module_path);
 }
@@ -358,6 +360,7 @@ X_STATUS Emulator::LaunchStfsContainer(std::wstring path) {
   file_system_->RegisterSymbolicLink("d:", mount_path);
 
   // Launch the game.
+  title_packaged_ = true;
   auto module_path(FindLaunchModule());
   return CompleteLaunch(path, module_path);
 }

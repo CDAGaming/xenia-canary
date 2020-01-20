@@ -70,6 +70,9 @@ class Emulator {
   // Are we currently running a title?
   bool is_title_open() const { return title_id_ != 0; }
 
+  // Is the title running from an STFS package?
+  bool is_title_packaged() const { return title_packaged_; }
+
   // Window used for displaying graphical output.
   ui::Window* display_window() const { return display_window_; }
 
@@ -184,6 +187,7 @@ class Emulator {
   std::unique_ptr<kernel::KernelState> kernel_state_;
   kernel::object_ref<kernel::XThread> main_thread_;
   uint32_t title_id_;  // Currently running title ID
+  bool title_packaged_ = false;  // Is title running from a package?
 
   bool paused_;
   bool restoring_;

@@ -68,6 +68,17 @@ dword_result_t XamContentGetLicenseMask(lpdword_t mask_ptr,
   // if the game is purchased or not.
   *mask_ptr = static_cast<uint32_t>(cvars::license_mask);
 
+  // Halo CEA calls this function to check if it's being ran from a package
+  // (maybe to know if it's a demo or something?)
+  // If we don't error it'll skip a bunch of things (DVD check/cache mount/...)
+  // So make sure to error if it's not running from package:
+  if (!kernel_state()->emulator()->is_title_packaged()) {
+    // Hack to still allow arcade titles get the license mask:
+    if ((kernel_state()->emulator()->title_id() & 0xFFFF0000) != 0x58410000) {
+      return X_E_ACCESS_DENIED;
+    }
+  }
+
   if (overlapped_ptr) {
     kernel_state()->CompleteOverlappedImmediate(overlapped_ptr,
                                                 X_ERROR_SUCCESS);
