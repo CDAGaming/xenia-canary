@@ -27,7 +27,7 @@ dword_result_t XexCheckExecutablePrivilege(dword_t privilege) {
 
   // Privilege is bit position in xe_xex2_system_flags enum - so:
   // Privilege=6 -> 0x00000040 -> XEX_SYSTEM_INSECURE_SOCKETS
-  uint32_t mask = 1 << privilege;
+  uint32_t mask = 1 << (privilege % 32);
 
   auto module = kernel_state()->GetExecutableModule();
   if (!module) {
@@ -70,8 +70,12 @@ dword_result_t XexCheckExecutablePrivilege(dword_t privilege) {
     }
   }
 
+  uint32_t header_id = XEX_HEADER_SYSTEM_FLAGS;  // header ID 0x30000
+  // Privileges 32+ are stored in 0x30100, 64+ probably in 0x30200...
+  header_id += (privilege / 32) << 8;
+
   uint32_t flags = 0;
-  module->GetOptHeader<uint32_t>(XEX_HEADER_SYSTEM_FLAGS, &flags);
+  module->GetOptHeader<uint32_t>((xex2_header_keys)header_id, &flags);
 
   return (flags & mask) > 0;
 }
