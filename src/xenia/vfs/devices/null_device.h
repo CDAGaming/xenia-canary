@@ -13,6 +13,7 @@
 #include <string>
 
 #include "xenia/vfs/device.h"
+#include "xenia/vfs/virtual_file_system.h"
 
 namespace xe {
 namespace vfs {
@@ -22,7 +23,8 @@ class NullEntry;
 class NullDevice : public Device {
  public:
   NullDevice(const std::string& mount_path,
-             const std::initializer_list<std::string>& null_paths);
+             const std::initializer_list<std::string>& null_paths,
+             VirtualFileSystem* vfs);
   ~NullDevice() override;
 
   bool Initialize() override;
@@ -46,11 +48,15 @@ class NullDevice : public Device {
     sectors_per_allocation_unit_ = value;
   }
 
+  VirtualFileSystem* vfs() { return vfs_; }
+
  private:
   std::unique_ptr<Entry> root_entry_;
   std::vector<std::string> null_paths_;
 
   uint32_t sectors_per_allocation_unit_ = 0x80;
+
+  VirtualFileSystem* vfs_ = nullptr;
 };
 
 }  // namespace vfs

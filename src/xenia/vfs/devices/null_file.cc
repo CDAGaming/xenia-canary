@@ -9,6 +9,9 @@
 
 #include "xenia/vfs/devices/null_file.h"
 
+#include <algorithm>
+
+#include "xenia/kernel/kernel_state.h"
 #include "xenia/vfs/devices/null_device.h"
 #include "xenia/vfs/devices/null_entry.h"
 
@@ -46,9 +49,37 @@ X_STATUS NullFile::WriteSync(const void* buffer, size_t buffer_length,
       // Game will try reading this back through NtQueryVolumeInformationFile
       // later on, if it doesn't match, cache partition mount won't succeed
       auto sectors_per_cluster = xe::byte_swap(header[2]);
+
       // Update NullDevice with the SectorsPerCluster value
       auto* null_device = (NullDevice*)entry_->device();
       null_device->sectors_per_allocation_unit(sectors_per_cluster);
+
+      // Since the game is trying to remake the FATX header (in other words,
+      // formatting the partition), we'll clear out the folder for this
+      // partition
+      auto folder_name = entry_->name();
+      std::transform(folder_name.begin(), folder_name.end(),
+                     folder_name.begin(), tolower);
+
+      // TODO: this works because atm cache0/cache1 folders are in same folder
+      // as xenia.exe, if that changes we should update this code too!
+      auto files = xe::filesystem::ListFiles(xe::to_wstring(folder_name));
+      for (auto file : files) {
+        auto filepath = xe::join_paths(file.path, file.name);
+        if (file.type == xe::filesystem::FileInfo::Type::kDirectory) {
+          xe::filesystem::DeleteFolder(filepath);
+        } else {
+          xe::filesystem::DeleteFile(filepath);
+        }
+      }
+
+      // Now re-init the device for this cache partition
+      // (otherwise device will think it has files that don't actually exist)
+      auto* device_root =
+          null_device->vfs()->ResolveDevice("\\" + folder_name + "\\");
+      if (device_root) {
+        device_root->device()->Initialize();
+      }
     }
   }
 

@@ -19,8 +19,9 @@ namespace xe {
 namespace vfs {
 
 NullDevice::NullDevice(const std::string& mount_path,
-                       const std::initializer_list<std::string>& null_paths)
-    : Device(mount_path), null_paths_(null_paths) {}
+                       const std::initializer_list<std::string>& null_paths,
+                       VirtualFileSystem* vfs)
+    : Device(mount_path), null_paths_(null_paths), vfs_(vfs) {}
 
 NullDevice::~NullDevice() = default;
 
