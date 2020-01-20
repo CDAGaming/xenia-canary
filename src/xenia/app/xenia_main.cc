@@ -20,7 +20,6 @@
 #include "xenia/emulator.h"
 #include "xenia/ui/file_picker.h"
 #include "xenia/vfs/devices/host_path_device.h"
-#include "xenia/vfs/devices/null_device.h"
 
 // Available audio systems:
 #include "xenia/apu/nop/nop_audio_system.h"
@@ -300,17 +299,6 @@ int xenia_main(const std::vector<std::wstring>& args) {
       } else {
         emulator->file_system()->RegisterSymbolicLink("cache1:", "\\CACHE1");
       }
-    }
-
-    // Below are accessed directly by STFC/cache code baked into the game
-    // By using a NullDevice that just returns success to all IO requests, the
-    // cache code should hopefully progress without erroring out
-    auto null_files = {std::string("\\Partition0"), std::string("\\Cache0"),
-                       std::string("\\Cache1")};
-    auto null_device = std::make_unique<vfs::NullDevice>(
-        "\\Device\\Harddisk0", null_files, emulator->file_system());
-    if (null_device->Initialize()) {
-      emulator->file_system()->RegisterDevice(std::move(null_device));
     }
   }
 
