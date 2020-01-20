@@ -34,13 +34,23 @@ class NullDevice : public Device {
   uint32_t total_allocation_units() const override { return 128 * 1024; }
   uint32_t available_allocation_units() const override { return 128 * 1024; }
 
-  // STFC/cache code seems to require the product of these two to equal 0x10000!
-  uint32_t sectors_per_allocation_unit() const override { return 1; }
-  uint32_t bytes_per_sector() const override { return 0x10000; }
+  // STFC/cache code seems to require the product of these two to equal 0x10000
+  // or 0x8000! (depending on SectorsPerCluster value written to partition
+  // header)
+  uint32_t sectors_per_allocation_unit() const override {
+    return sectors_per_allocation_unit_;
+  }
+  uint32_t bytes_per_sector() const override { return 512; }
+
+  void sectors_per_allocation_unit(uint32_t value) {
+    sectors_per_allocation_unit_ = value;
+  }
 
  private:
   std::unique_ptr<Entry> root_entry_;
   std::vector<std::string> null_paths_;
+
+  uint32_t sectors_per_allocation_unit_ = 0x80;
 };
 
 }  // namespace vfs

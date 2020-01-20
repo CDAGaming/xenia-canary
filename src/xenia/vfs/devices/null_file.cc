@@ -9,6 +9,7 @@
 
 #include "xenia/vfs/devices/null_file.h"
 
+#include "xenia/vfs/devices/null_device.h"
 #include "xenia/vfs/devices/null_entry.h"
 
 namespace xe {
@@ -35,6 +36,20 @@ X_STATUS NullFile::WriteSync(const void* buffer, size_t buffer_length,
   if (!(file_access_ &
         (FileAccess::kFileWriteData | FileAccess::kFileAppendData))) {
     return X_STATUS_ACCESS_DENIED;
+  }
+
+  // Check if game is writing a FATX header...
+  if (byte_offset == 0 && buffer_length >= (4 * 3)) {
+    auto* header = (uint32_t*)buffer;
+    if (xe::load_and_swap<uint32_t>(header) == 0x58544146) {
+      // This is a FATX header - read the SectorsPerCluster value from it
+      // Game will try reading this back through NtQueryVolumeInformationFile
+      // later on, if it doesn't match, cache partition mount won't succeed
+      auto sectors_per_cluster = xe::byte_swap(header[2]);
+      // Update NullDevice with the SectorsPerCluster value
+      auto* null_device = (NullDevice*)entry_->device();
+      null_device->sectors_per_allocation_unit(sectors_per_cluster);
+    }
   }
 
   return X_STATUS_SUCCESS;
