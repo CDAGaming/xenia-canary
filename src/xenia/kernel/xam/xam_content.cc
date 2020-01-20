@@ -328,7 +328,7 @@ dword_result_t XamContentCreateEx(dword_t user_index, lpstring_t root_name,
   }
 
   if (!result && content_data.content_type ==
-                     (uint32_t)vfs::StfsContentType::kMarketplaceContent) {
+                     (uint32_t)vfs::XContentType::kMarketplaceContent) {
     // Load up spa.bin from this DLC if it has one:
     // TODO: should we do this inside ContentManager instead?
     auto spa_entry = kernel_state()->file_system()->ResolvePath(
