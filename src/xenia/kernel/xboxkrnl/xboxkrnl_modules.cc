@@ -34,20 +34,40 @@ dword_result_t XexCheckExecutablePrivilege(dword_t privilege) {
     return 0;
   }
 
-  if (cvars::mount_cache && privilege == 0xB) {  // TitleInsecureUtilityDrive
-    // If this privilege is set, the cache-partition code baked into most
-    // games skips a huge chunk of device-init code (registering a custom
-    // STFC filesystem handler with the kernel, etc), and just symlinks the
-    // cache partition to the existing device directly (I guess on 360 this
-    // would probably make it FATX, explaining the 'Insecure' part of it)
+  // Privilege 0xB (TitleInsecureUtilityDrive) hack:
+  // If the 0xB privilege is set, the cache-partition code baked into most
+  // games skips a huge chunk of device-init code (registering a custom
+  // STFC filesystem handler with the kernel, etc), and just symlinks the
+  // cache partition to the existing device directly (I guess on 360 this
+  // would probably make it FATX, explaining the 'Insecure' part of it)
 
-    // Thanks to this skip we can easily take control of the cache partition
-    // ourselves, just by symlinking it before the game does!
+  // Thanks to this skip we can easily take control of the cache partition
+  // ourselves, just by symlinking it before the game does!
 
-    // TODO: check if this skip-code is actually available on every game that
-    // uses cache - it's possible that early/later SDKs might not have it, and
-    // we won't be able to rely on using this cheat for everything...
-    return 1;
+  // TODO: check if this skip-code is actually available on every game that
+  // uses cache - it's possible that early/later SDKs might not have it, and
+  // we won't be able to rely on using this cheat for everything...
+  if (cvars::mount_cache) {
+    // Some games (eg. Sega Rally Revo) seem to have some code that checks for
+    // privilege 0xB, and bails out if it's set - no idea why it does this,
+    // maybe it's some kind of earlier STFC code, it seems to be ran just
+    // before the real STFC code that this trick was made for is called.
+    // We can use a cheeky heuristic to get past it tho: the bailout function
+    // checks for 0xB and then checks 0x17, but the cache function that we're
+    // trying to fool by setting 0xB always seems to check 0x17 before 0xB!
+
+    // So if we check that we've seen 0x17 first before replying true to 0xB,
+    // hopefully we can get passed the bailout function unscathed...
+
+    // Privilege 0x17 (TitleBothUtilityPartitions)
+    // TODO: probably should store this some other way, statics won't play well
+    // when we have XEX re-loading etc...
+    static bool seen_0x17 = false;
+    if (privilege == 0x17) {
+      seen_0x17 = true;
+    } else if (privilege == 0xB && seen_0x17) {
+      return 1;
+    }
   }
 
   uint32_t flags = 0;
