@@ -310,7 +310,7 @@ bool EmulatorWindow::Initialize() {
     help_menu->AddChild(MenuItem::Create(
         MenuItem::Type::kString, L"Recent changes on GitHub...", [this]() {
           std::wstring url =
-              std::wstring(L"https://github.com/xenia-project/xenia/compare/") +
+              std::wstring(L"https://github.com/xenia-canary/xenia-canary/compare/") +
               xe::to_wstring(XE_BUILD_COMMIT) + L"..." +
               xe::to_wstring(XE_BUILD_BRANCH);
           LaunchBrowser(url.c_str());
@@ -560,7 +560,7 @@ void EmulatorWindow::ShowHelpWebsite() { LaunchBrowser(L"https://xenia.jp"); }
 
 void EmulatorWindow::ShowCommitID() {
   std::wstring url =
-      std::wstring(L"https://github.com/xenia-project/xenia/commit/") +
+      std::wstring(L"https://github.com/xenia-canary/xenia-canary/commit/") +
       xe::to_wstring(XE_BUILD_COMMIT) + L"/";
   LaunchBrowser(url.c_str());
 }
