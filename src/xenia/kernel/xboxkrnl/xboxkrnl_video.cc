@@ -139,7 +139,8 @@ void VdQueryVideoMode(pointer_t<X_VIDEO_MODE> video_mode) {
   video_mode->display_width = cvars::internal_tile_width;
   video_mode->display_height = cvars::internal_tile_height;
   video_mode->is_interlaced = 0;
-  video_mode->is_widescreen = 1;
+  video_mode->is_widescreen = ((video_mode->display_width / 4) >
+                              (video_mode->display_height / 3));
   video_mode->is_hi_def = 1;
   video_mode->refresh_rate = 60.0f;
   video_mode->video_standard = 1;  // NTSC
