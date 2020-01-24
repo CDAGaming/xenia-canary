@@ -317,14 +317,12 @@ struct CONVERT_I32_F64
 struct CONVERT_I64_F64
     : Sequence<CONVERT_I64_F64, I<OPCODE_CONVERT, I64Op, F64Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
+    e.xor_(e.eax, e.eax);
 
-    e.xor_ (e.eax, e.eax);
-    
     e.vcomisd(i.src1, e.GetXmmConstPtr(XmmConst::XMMZero));
     if (i.instr->flags == ROUND_TO_ZERO) {
       e.vcvttsd2si(i.dest, i.src1);
-    }
-    else {
+    } else {
       e.vcvtsd2si(i.dest, i.src1);
     }
     // cf set if less than
@@ -332,7 +330,7 @@ struct CONVERT_I64_F64
     e.cmp(i.dest, -1LL);
     // if dest == 0x80000000 and not inp < 0 then dest = 0x7FFFFFFF
     e.seto(e.al);
-    e.and_ (e.al, e.cl);
+    e.and_(e.al, e.cl);
     e.sub(i.dest, e.rax);
   }
 };
@@ -1204,6 +1202,9 @@ template <typename SEQ, typename REG, typename ARGS>
 void EmitAddCarryXX(X64Emitter& e, const ARGS& i) {
   // TODO(benvanik): faster setting? we could probably do some fun math tricks
   // here to get the carry flag set.
+  // chrisps: faster setting now, but i think the i.src3.is_constant check is
+  // dead code
+
   if (i.src3.is_constant) {
     if (i.src3.constant()) {
       e.stc();
@@ -1211,15 +1212,9 @@ void EmitAddCarryXX(X64Emitter& e, const ARGS& i) {
       e.clc();
     }
   } else {
-    if (i.src3.reg().getIdx() <= 4) {
-      // Can move from A/B/C/DX to AH.
-      e.mov(e.ah, i.src3.reg().cvt8());
-    } else {
-      e.mov(e.al, i.src3);
-      e.mov(e.ah, e.al);
-    }
-    e.sahf();
+    e.bt(i.src3.reg().cvt32(), 0);
   }
+
   SEQ::EmitCommutativeBinaryOp(
       e, i,
       [](X64Emitter& e, const REG& dest_src, const REG& src) {
@@ -2696,6 +2691,34 @@ void EmitAndXX(X64Emitter& e, const ARGS& i) {
         e.and_(dest_src, src);
       },
       [](X64Emitter& e, const REG& dest_src, int32_t constant) {
+        if (constant == 0xFF) {
+          if (dest_src.getBit() == 16 || dest_src.getBit() == 32) {
+            e.movzx(dest_src, dest_src.cvt8());
+            return;
+          } else if (dest_src.getBit() == 64) {
+            // take advantage of automatic zeroing of upper 32 bits
+            e.movzx(dest_src.cvt32(), dest_src.cvt8());
+            return;
+          }
+        } else if (constant == 0xFFFF) {
+          if (dest_src.getBit() == 32) {
+            e.movzx(dest_src, dest_src.cvt16());
+            return;
+          } else if (dest_src.getBit() == 64) {
+            e.movzx(dest_src.cvt32(), dest_src.cvt16());
+            return;
+          }
+        } else if (constant == -1) {
+          if (dest_src.getBit() == 64) {
+            // todo: verify that mov eax, eax will properly zero upper 64 bits
+          }
+        } else if (dest_src.getBit() == 64 && constant > 0) {
+          // do 32 bit and, not the full 64, because the upper 32 of the mask
+          // are zero and the 32 bit op will auto clear the top, save space on
+          // the immediate and avoid a rex prefix
+          e.and_(dest_src.cvt32(), constant);
+          return;
+        }
         e.and_(dest_src, constant);
       });
 }
