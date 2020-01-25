@@ -175,7 +175,7 @@ struct ZERO_EXTEND_I32_I8
 struct ZERO_EXTEND_I64_I8
     : Sequence<ZERO_EXTEND_I64_I8, I<OPCODE_ZERO_EXTEND, I64Op, I8Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    e.movzx(i.dest, i.src1);
+    e.movzx(i.dest.reg().cvt32(), i.src1);
   }
 };
 struct ZERO_EXTEND_I32_I16
@@ -187,7 +187,7 @@ struct ZERO_EXTEND_I32_I16
 struct ZERO_EXTEND_I64_I16
     : Sequence<ZERO_EXTEND_I64_I16, I<OPCODE_ZERO_EXTEND, I64Op, I16Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    e.movzx(i.dest, i.src1);
+    e.movzx(i.dest.reg().cvt32(), i.src1);
   }
 };
 struct ZERO_EXTEND_I64_I32
@@ -1323,6 +1323,19 @@ EMITTER_OPCODE_TABLE(OPCODE_SUB, SUB_I8, SUB_I16, SUB_I32, SUB_I64, SUB_F32,
 // We exploit mulx here to avoid creating too much register pressure.
 struct MUL_I8 : Sequence<MUL_I8, I<OPCODE_MUL, I8Op, I8Op, I8Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
+            if(i.src1.is_constant || i.src2.is_constant ) {
+        
+
+        uint64_t cval =i.src1.is_constant ? i.src1.constant() : i.src2.constant();
+
+        if(cval < (1ull<<32)) {
+
+        auto& whichevs = i.src1.is_constant ? i.src2 : i.src1;
+
+            e.imul(i.dest, whichevs, (int)cval);
+            return;
+        }
+    }
     if (e.IsFeatureEnabled(kX64EmitBMI2)) {
       // mulx: $1:$2 = EDX * $3
 
@@ -1364,6 +1377,19 @@ struct MUL_I8 : Sequence<MUL_I8, I<OPCODE_MUL, I8Op, I8Op, I8Op>> {
 };
 struct MUL_I16 : Sequence<MUL_I16, I<OPCODE_MUL, I16Op, I16Op, I16Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
+     if(i.src1.is_constant || i.src2.is_constant ) {
+        
+
+        uint64_t cval =i.src1.is_constant ? i.src1.constant() : i.src2.constant();
+
+        if(cval < (1ull<<32)) {
+
+        auto& whichevs = i.src1.is_constant ? i.src2 : i.src1;
+
+            e.imul(i.dest, whichevs, (int)cval);
+            return;
+        }
+    }
     if (e.IsFeatureEnabled(kX64EmitBMI2)) {
       // mulx: $1:$2 = EDX * $3
 
@@ -1411,6 +1437,20 @@ struct MUL_I32 : Sequence<MUL_I32, I<OPCODE_MUL, I32Op, I32Op, I32Op>> {
         e.lea(i.dest, e.ptr[i.src1.reg() * (multiplier - 1) + i.src1.reg()]);
         return;
       }
+    }
+
+        if(i.src1.is_constant || i.src2.is_constant ) {
+        
+
+        uint64_t cval =i.src1.is_constant ? i.src1.constant() : i.src2.constant();
+
+        if(cval < (1ull<<32)) {
+
+        auto& whichevs = i.src1.is_constant ? i.src2 : i.src1;
+
+            e.imul(i.dest, whichevs, (int)cval);
+            return;
+        }
     }
     if (e.IsFeatureEnabled(kX64EmitBMI2)) {
       // mulx: $1:$2 = EDX * $3
@@ -1462,6 +1502,21 @@ struct MUL_I64 : Sequence<MUL_I64, I<OPCODE_MUL, I64Op, I64Op, I64Op>> {
         return;
       }
     }
+
+    if(i.src1.is_constant || i.src2.is_constant ) {
+        
+
+        uint64_t cval =i.src1.is_constant ? i.src1.constant() : i.src2.constant();
+
+        if(cval < (1ull<<32)) {
+
+        auto& whichevs = i.src1.is_constant ? i.src2 : i.src1;
+
+            e.imul(i.dest, whichevs, (int)cval);
+            return;
+        }
+    }
+
     if (e.IsFeatureEnabled(kX64EmitBMI2)) {
       // mulx: $1:$2 = RDX * $3
 
@@ -2470,9 +2525,14 @@ struct RSQRT_F32 : Sequence<RSQRT_F32, I<OPCODE_RSQRT, F32Op, F32Op>> {
 };
 struct RSQRT_F64 : Sequence<RSQRT_F64, I<OPCODE_RSQRT, F64Op, F64Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    e.vcvtsd2ss(i.dest, i.src1);
+    /*e.vcvtsd2ss(i.dest, i.src1);
     e.vrsqrtss(i.dest, i.dest);
-    e.vcvtss2sd(i.dest, i.dest);
+    e.vcvtss2sd(i.dest, i.dest);*/
+
+    e.vmovsd(e.xmm0, e.GetXmmConstPtr(XmmConst::XMMOneDouble));
+    e.vsqrtsd(i.dest, i.src1);
+    e.vdivsd(i.dest, e.xmm0, i.dest);
+
   }
 };
 struct RSQRT_V128 : Sequence<RSQRT_V128, I<OPCODE_RSQRT, V128Op, V128Op>> {
@@ -2492,9 +2552,11 @@ struct RECIP_F32 : Sequence<RECIP_F32, I<OPCODE_RECIP, F32Op, F32Op>> {
 };
 struct RECIP_F64 : Sequence<RECIP_F64, I<OPCODE_RECIP, F64Op, F64Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
-    e.vcvtsd2ss(i.dest, i.src1);
+    /*e.vcvtsd2ss(i.dest, i.src1);
     e.vrcpss(i.dest, i.dest);
-    e.vcvtss2sd(i.dest, i.dest);
+    e.vcvtss2sd(i.dest, i.dest);*/
+      e.vmovsd(e.xmm0,  e.GetXmmConstPtr(XmmConst::XMMOneDouble));
+      e.vdivsd(i.dest, e.xmm0, i.src1);
   }
 };
 struct RECIP_V128 : Sequence<RECIP_V128, I<OPCODE_RECIP, V128Op, V128Op>> {
