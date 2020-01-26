@@ -1,14 +1,15 @@
 <p align="center">
     <a href="https://github.com/xenia-canary/xenia-canary/tree/canary/assets/icon">
-        <img height="120px" src="https://raw.githubusercontent.com/xenia-canary/xenia-canary/canary/assets/icon/256.png" />
+        <img height="120px" width="120px" src="https://raw.githubusercontent.com/xenia-canary/xenia-canary/canary/assets/icon/1024.png" />
     </a>
 </p>
 <h1 align="center">Xenia Canary - Xbox 360 Emulator</h1>
 
+[![Discord Server](https://img.shields.io/discord/533275703882547200?logo=discord)](https://discord.gg/jydhhRQ)
 [![Actions Status](https://github.com/xenia-canary/xenia-canary/workflows/main/badge.svg)](https://github.com/xenia-canary/xenia-canary/actions)
-[![Discord](https://img.shields.io/discord/533275703882547200?logo=discord)](https://discord.gg/jydhhRQ)
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5fs0ia3031l9rbpo/branch/canary?svg=true)](https://ci.appveyor.com/project/chris-hawley/xenia-canary/branch/canary)[![Azure Build Status](https://dev.azure.com/xenia-canary/xenia-canary/_apis/build/status/xenia-canary.xenia-canary?branchName=canary)](https://dev.azure.com/xenia-canary/xenia-canary/_build/latest?definitionId=1&branchName=canary)
-<!--[Linux](https://travis-ci.org/xenia-project/xenia) | [![Build status](https://travis-ci.org/xenia-project/xenia.svg?branch=master)](https://travis-ci.org/xenia-project/xenia)-->
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/5fs0ia3031l9rbpo/branch/canary?svg=true)](https://ci.appveyor.com/project/chris-hawley/xenia-canary/branch/canary)
+[![Azure Build Status](https://dev.azure.com/xenia-canary/xenia-canary/_apis/build/status/xenia-canary.xenia-canary?branchName=canary)](https://dev.azure.com/xenia-canary/xenia-canary/_build/latest?definitionId=1&branchName=canary)
+<!--[![Travis Build Status](https://travis-ci.org/xenia-canary/xenia-canary.svg?branch=canary)](https://travis-ci.org/xenia-canary/xenia-canary)-->
 
 Xenia Canary is an experimental fork of Xenia. For more information, see the
 [wiki](https://github.com/xenia-canary/xenia-canary/wiki).
@@ -36,12 +37,13 @@ legally purchased devices and games and information made public on the internet
 See the [Quickstart](https://github.com/xenia-project/xenia/wiki/Quickstart) page.
 
 ## Download
+
 [Windows](https://github.com/xenia-canary/xenia-canary/releases/latest/download/xenia-canary.zip)
 
 <!--Quite a few real games run. Quite a few don't.
-See the [Game compatibility list](https://github.com/xenia-project/game-compatibility/issues)
+See the [Game compatibility list](https://github.com/xenia-canary/game-compatibility/issues)
 for currently tracked games, and feel free to contribute your own updates,
-screenshots, and information there following the [existing conventions](https://github.com/xenia-project/game-compatibility/blob/master/README.md).-->
+screenshots, and information there following the [existing conventions](https://github.com/xenia-canary/game-compatibility/blob/master/README.md).-->
 
 ## Building
 
