@@ -39,7 +39,12 @@ jobs:
         cpu_arch: AVX
       AVX2:
         cpu_arch: AVX2
+      AVX512:
+        cpu_arch: AVX512
   steps:
+  - script: wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
+    displayName: 'CPU info'
+
   - script: xb setup
     displayName: 'Setup'
 

@@ -38,6 +38,10 @@ jobs:
       matrix:
         cpu_arch: [AVX, AVX2, AVX512]
     steps:
+    - name: CPU info
+      run: wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
+      shell: cmd
+
     - uses: actions/checkout@master
       with:
         fetch-depth: 0

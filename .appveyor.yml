@@ -29,6 +29,9 @@ pull_requests:
 
 image: Visual Studio 2019
 
+init:
+  - wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
+
 install:
   - xb setup
 
