@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-    - 'canary-test'
+    - '*'
     exclude:
     - gh-pages
     - master
@@ -16,7 +16,7 @@ trigger:
 pr:
   branches:
     include:
-    - 'canary-test'
+    - '*'
     exclude:
     - gh-pages
     - master
@@ -39,8 +39,6 @@ jobs:
         cpu_arch: AVX
       AVX2:
         cpu_arch: AVX2
-      AVX512:
-        cpu_arch: AVX512
   steps:
   - script: xb setup
     displayName: 'Setup'
