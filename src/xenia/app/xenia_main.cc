@@ -44,6 +44,10 @@
 #include "xenia/hid/xinput/xinput_hid.h"
 #endif  // XE_PLATFORM_WIN32
 
+#if XE_PLATFORM_WIN32
+#include "xenia/app/check_update.h"
+#endif
+
 #include "third_party/xbyak/xbyak/xbyak_util.h"
 
 DEFINE_string(apu, "any", "Audio system. Use: [any, nop, sdl, xaudio2]", "APU");
@@ -75,6 +79,7 @@ DEFINE_transient_string(target, "",
 DECLARE_bool(debug);
 
 DEFINE_bool(discord, true, "Enable Discord rich presence", "General");
+DEFINE_bool(check_update, true, "Check GitHub for new builds", "General");
 
 namespace xe {
 namespace app {
@@ -388,6 +393,13 @@ int xenia_main(const std::vector<std::wstring>& args) {
       return 1;
     }
   }
+
+#if XE_PLATFORM_WIN32
+  // check for updates
+  if (cvars::check_update){
+    update::Update::CheckUpdate();
+  }
+#endif
 
   // Now, we're going to use the main thread to drive events related to
   // emulation.
