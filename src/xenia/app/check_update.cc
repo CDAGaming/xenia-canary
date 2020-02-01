@@ -162,7 +162,7 @@ namespace update {
     // get difference of build/run time in hours
     double diff = (difftime(mktime(now), mktime(&t_b)) / 3600.0);
     //XELOGI("%f",diff);
-    if (diff > 1.0) {
+    if (diff > 24.5) {
       //request api response for latest release
       wstring answer = SendHTTPSRequest_GET(L"api.github.com",
 		    L"/repos/xenia-canary/xenia-canary/releases/latest", L"");
