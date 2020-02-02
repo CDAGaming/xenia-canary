@@ -29,7 +29,8 @@ class SDLInputDriver : public InputDriver {
   explicit SDLInputDriver(xe::ui::Window* window);
   ~SDLInputDriver() override;
 
-  X_STATUS Setup() override;
+  X_STATUS Setup(
+      std::vector<std::unique_ptr<hid::InputDriver>>& drivers) override;
 
   X_RESULT GetCapabilities(uint32_t user_index, uint32_t flags,
                            X_INPUT_CAPABILITIES* out_caps) override;
