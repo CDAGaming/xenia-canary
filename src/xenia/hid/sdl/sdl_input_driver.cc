@@ -92,7 +92,6 @@ X_STATUS SDLInputDriver::Setup(std::vector<std::unique_ptr<hid::InputDriver>>& d
       }
       switch (type) {
         case SDL_CONTROLLERDEVICEADDED:
-        case SDL_JOYDEVICEADDED:
           driver->OnControllerDeviceAdded(event);
           break;
         case SDL_CONTROLLERDEVICEREMOVED:
