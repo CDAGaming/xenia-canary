@@ -7,8 +7,10 @@ trigger:
     - master
   paths:
     exclude:
-    - docs/**
-    - .github/**
+    - docs/*
+    - docs/*/*
+    - .github/*
+    - .github/*/*
     - LICENSE
     - README.md
     - .appveyor.yml
@@ -22,8 +24,10 @@ pr:
     - master
   paths:
     exclude:
-    - docs/**
-    - .github/**
+    - docs/*
+    - docs/*/*
+    - .github/*
+    - .github/*/*
     - LICENSE
     - README.md
     - .appveyor.yml
@@ -52,9 +56,8 @@ jobs:
     displayName: 'Build'
 
   - script: |
-      cd build\bin\Windows\Release
-      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-canary.exe 
-      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-vfs-dump.exe 
+      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe 
+      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe 
     displayName: 'Create archives'
 
   - publish: $(Build.ArtifactStagingDirectory)

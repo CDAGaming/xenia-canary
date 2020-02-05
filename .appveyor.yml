@@ -40,10 +40,8 @@ build_script:
 
 after_build:
   - |-
-      cd build\bin\Windows\Release
-      7z a ..\..\..\..\xenia-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-canary.exe
-      7z a ..\..\..\..\xenia-vfs-dump-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-vfs-dump.exe
-      cd ..\..\..\..
+      7z a xenia-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe
+      7z a xenia-vfs-dump-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe
 
 test: off
 

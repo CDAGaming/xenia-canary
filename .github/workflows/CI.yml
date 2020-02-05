@@ -9,7 +9,8 @@ on:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
       - '.github/ISSUE_TEMPLATE.md'
-      - 'docs/**'
+      - 'docs/*'
+      - 'docs/*/*'
       - '.appveyor.yml'
       - '.azure-pipelines.yml'
       - '.travis.yml'
@@ -23,7 +24,8 @@ on:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
       - '.github/ISSUE_TEMPLATE.md'
-      - 'docs/**'
+      - 'docs/*'
+      - 'docs/*/*'
       - '.appveyor.yml'
       - '.azure-pipelines.yml'
       - '.travis.yml'
@@ -41,7 +43,7 @@ jobs:
       run: wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
       shell: cmd
 
-    - uses: actions/checkout@v2.0.0
+    - uses: actions/checkout@v2
       with:
         fetch-depth: 0
 
@@ -53,13 +55,12 @@ jobs:
 
     - name: Prepare artifacts
       run: |
-          robocopy build\bin\Windows\Release artifacts xenia*.exe
-          robocopy . artifacts LICENSE
-          $LastExitCode = 0
-          cd artifacts
-          7z a ..\xenia-canary.zip LICENSE xenia-canary.exe
+        mkdir artifacts
+        cp build/bin/Windows/Release/xenia*.exe LICENSE artifacts
+        7z a xenia-canary.zip LICENSE ./artifacts/xenia-canary.exe
+      shell: bash
 
-    - uses: actions/upload-artifact@v1.0.0
+    - uses: actions/upload-artifact@v1
       with:
         name: xenia-canary-${{ matrix.cpu_arch }}
         path: artifacts
