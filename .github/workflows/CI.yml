@@ -65,6 +65,12 @@ jobs:
         name: xenia-canary-${{ matrix.cpu_arch }}
         path: artifacts
 
+    - uses: actions/upload-artifact@v1
+      if: matrix.cpu_arch == 'AVX'
+      with:
+        name: SDL2
+        path: build\bin\Windows\Release\SDL2.dll
+
     - name: Create Release
       if: github.event.action != 'pull_request' && github.ref == 'refs/heads/canary' && matrix.cpu_arch == 'AVX'
       id: create_release

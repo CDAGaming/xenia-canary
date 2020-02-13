@@ -56,8 +56,9 @@ jobs:
     displayName: 'Build'
 
   - script: |
-      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe 
-      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe 
+      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe
+      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe
+      7z a $(Build.ArtifactStagingDirectory)\SDL2.zip .\build\bin\Windows\Release\SDL2.dll
     displayName: 'Create archives'
 
   - publish: $(Build.ArtifactStagingDirectory)
