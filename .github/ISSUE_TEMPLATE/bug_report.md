@@ -18,7 +18,7 @@ assignees: ''
 # DO NOT CREATE ISSUES ABOUT SPECIFIC GAMES IN THIS REPOSITORY!
 # a game specific issue would be e.g. "Game X crashes after you hit a character a certain way"
 # A Xenia issue would be e.g. "Kernel export NtDoSomething does nothing"
-# For specific games, visit https://github.com/xenia-project/game-compatibility#game-compatibility
+# For specific games, visit https://github.com/xenia-canary/game-compatibility#game-compatibility
 #
 # Try to create a very concise title that's straight to the point
 -->
