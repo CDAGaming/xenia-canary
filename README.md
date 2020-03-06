@@ -38,12 +38,16 @@ See the [Quickstart](https://github.com/xenia-project/xenia/wiki/Quickstart) pag
 
 ## Download
 
-[Windows](https://github.com/xenia-canary/xenia-canary/releases/latest/download/xenia-canary.zip)
+Windows:
+  * **[AppVeyor](https://ci.appveyor.com/api/projects/chris-hawley/xenia-canary/artifacts/xenia-canary.zip?branch=canary&job=Configuration:%20Release&pr=false)**
+  * *[GitHub Actions](https://github.com/xenia-canary/xenia-canary/releases/latest/download/xenia-canary.zip)*
 
-<!--Quite a few real games run. Quite a few don't.
+## Compatibility
+
+Quite a few real games run. Quite a few don't.
 See the [Game compatibility list](https://github.com/xenia-canary/game-compatibility/issues)
 for currently tracked games, and feel free to contribute your own updates,
-screenshots, and information there following the [existing conventions](https://github.com/xenia-canary/game-compatibility/blob/master/README.md).-->
+screenshots, and information there following the [existing conventions](https://github.com/xenia-canary/game-compatibility/blob/master/README.md).
 
 ## Building
 
