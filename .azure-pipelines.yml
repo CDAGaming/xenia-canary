@@ -55,12 +55,25 @@ jobs:
   - script: xb build --cpu_arch=$(cpu_arch) --target=src\xenia-app --target=src\xenia-vfs-dump
     displayName: 'Build'
 
-  - script: |
-      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe
-      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe
-      7z a $(Build.ArtifactStagingDirectory)\SDL2.zip .\build\bin\Windows\Release\SDL2.dll
-    displayName: 'Create archives'
+  - script: |-
+      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-canary xenia-canary.exe /r:0 /w:0
+      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-vfs-dump xenia-vfs-dump.exe /r:0 /w:0
+      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory) SDL2.dll /r:0 /w:0
+      robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary LICENSE /r:0 /w:0
+      robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary-vfs-dump LICENSE /r:0 /w:0
+      IF %ERRORLEVEL% LEQ 7 (exit /b 0) ELSE (exit /b 1)
+    displayName: 'Prepare artifacts'
 
-  - publish: $(Build.ArtifactStagingDirectory)
-    artifact: $(cpu_arch)
-    displayName: Publish artifacts
+  - publish: $(Build.ArtifactStagingDirectory)\xenia-canary
+    artifact: xenia-canary-$(cpu_arch)
+    displayName: 'Publish xenia-canary artifacts'
+
+  - publish: $(Build.ArtifactStagingDirectory)\xenia-vfs-dump
+    condition: and(succeeded(), eq(variables['Agent.JobName'], 'AVX'))
+    artifact: xenia-vfs-dump
+    displayName: 'Publish xenia-vfs-dump artifacts'
+
+  - publish: $(Build.ArtifactStagingDirectory)\SDL2.dll
+    condition: and(succeeded(), eq(variables['Agent.JobName'], 'AVX'))
+    artifact: SDL2
+    displayName: 'Publish SDL2 artifact(s)'
