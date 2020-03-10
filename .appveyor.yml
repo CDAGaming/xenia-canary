@@ -29,9 +29,6 @@ pull_requests:
 
 image: Visual Studio 2019
 
-init:
-  - wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
-
 install:
   - xb setup
 
@@ -40,8 +37,8 @@ build_script:
 
 after_build:
   - |-
-      7z a xenia-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe
-      7z a xenia-vfs-dump-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe
+      7z a -mx1 xenia-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-canary.exe
+      7z a -mx1 xenia-vfs-dump-%appveyor_repo_branch%.zip LICENSE .\build\bin\Windows\Release\xenia-vfs-dump.exe
 
 test: off
 

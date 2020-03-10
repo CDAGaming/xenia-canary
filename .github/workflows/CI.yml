@@ -8,7 +8,7 @@ on:
     paths-ignore:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
-      - '.github/ISSUE_TEMPLATE.md'
+      - '.github/ISSUE_TEMPLATE/*'
       - 'docs/*'
       - 'docs/*/*'
       - '.appveyor.yml'
@@ -23,7 +23,7 @@ on:
     paths-ignore:
       - '.github/CONTRIBUTING.md'
       - '.github/FUNDING.md'
-      - '.github/ISSUE_TEMPLATE.md'
+      - '.github/ISSUE_TEMPLATE/*'
       - 'docs/*'
       - 'docs/*/*'
       - '.appveyor.yml'
@@ -39,10 +39,6 @@ jobs:
       matrix:
         cpu_arch: [AVX, AVX2, AVX512]
     steps:
-    - name: CPU info
-      run: wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
-      shell: cmd
-
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -55,17 +51,28 @@ jobs:
 
     - name: Prepare artifacts
       run: |
-        mkdir artifacts
-        cp build/bin/Windows/Release/xenia*.exe LICENSE artifacts
-        7z a xenia-canary.zip LICENSE ./artifacts/xenia-canary.exe
-      shell: bash
+        robocopy build\bin\Windows\Release artifacts\xenia-canary xenia-canary.exe /r:0 /w:0
+        robocopy build\bin\Windows\Release artifacts\xenia-vfs-dump xenia-vfs-dump.exe /r:0 /w:0
+        robocopy . artifacts\xenia-canary LICENSE /r:0 /w:0
+        robocopy . artifacts\xenia-canary-vfs-dump LICENSE /r:0 /w:0
+        If ($LastExitCode -lt 8) { $LastExitCode = 0 }
+        7z a -mx1 xenia-canary.zip LICENSE .\artifacts\xenia-canary\*.exe
 
-    - uses: actions/upload-artifact@v1
+    - name: Upload xenia-canary artifacts
+      uses: actions/upload-artifact@v1
       with:
         name: xenia-canary-${{ matrix.cpu_arch }}
-        path: artifacts
+        path: artifacts\xenia-canary
 
-    - uses: actions/upload-artifact@v1
+    - name: Upload xenia-vfs-dump artifacts
+      uses: actions/upload-artifact@v1
+      if: matrix.cpu_arch == 'AVX'
+      with:
+        name: xenia-vfs-dump
+        path: artifacts\xenia-vfs-dump
+
+    - name: Upload SDL2 artifact(s)
+      uses: actions/upload-artifact@v1
       if: matrix.cpu_arch == 'AVX'
       with:
         name: SDL2

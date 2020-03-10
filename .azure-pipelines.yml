@@ -46,9 +46,6 @@ jobs:
       AVX512:
         cpu_arch: AVX512
   steps:
-  - script: wmic cpu get caption, deviceid, name, numberofcores, maxclockspeed, status
-    displayName: 'CPU info'
-
   - script: xb setup
     displayName: 'Setup'
 
@@ -58,7 +55,6 @@ jobs:
   - script: |-
       robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-canary xenia-canary.exe /r:0 /w:0
       robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-vfs-dump xenia-vfs-dump.exe /r:0 /w:0
-      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory) SDL2.dll /r:0 /w:0
       robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary LICENSE /r:0 /w:0
       robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary-vfs-dump LICENSE /r:0 /w:0
       IF %ERRORLEVEL% LEQ 7 (exit /b 0) ELSE (exit /b 1)
@@ -73,7 +69,7 @@ jobs:
     artifact: xenia-vfs-dump
     displayName: 'Publish xenia-vfs-dump artifacts'
 
-  - publish: $(Build.ArtifactStagingDirectory)\SDL2.dll
+  - publish: build\bin\Windows\Release\SDL2.dll
     condition: and(succeeded(), eq(variables['Agent.JobName'], 'AVX'))
     artifact: SDL2
     displayName: 'Publish SDL2 artifact(s)'
