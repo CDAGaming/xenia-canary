@@ -52,12 +52,11 @@ jobs:
   - script: xb build --cpu_arch=$(cpu_arch) --target=src\xenia-app --target=src\xenia-vfs-dump
     displayName: 'Build'
 
-  - script: |-
-      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-canary xenia-canary.exe /r:0 /w:0
-      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-vfs-dump xenia-vfs-dump.exe /r:0 /w:0
-      robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary LICENSE /r:0 /w:0
-      robocopy . $(Build.ArtifactStagingDirectory)\xenia-canary-vfs-dump LICENSE /r:0 /w:0
-      IF %ERRORLEVEL% LEQ 7 (exit /b 0) ELSE (exit /b 1)
+  - pwsh: |-
+      robocopy . build\bin\Windows\Release LICENSE /r:0 /w:0
+      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-canary xenia-canary.exe LICENSE /r:0 /w:0
+      robocopy build\bin\Windows\Release $(Build.ArtifactStagingDirectory)\xenia-vfs-dump xenia-vfs-dump.exe LICENSE /r:0 /w:0
+      If ($LastExitCode -le 7) { $LastExitCode = 0 }
     displayName: 'Prepare artifacts'
 
   - publish: $(Build.ArtifactStagingDirectory)\xenia-canary

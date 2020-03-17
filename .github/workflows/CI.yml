@@ -51,11 +51,10 @@ jobs:
 
     - name: Prepare artifacts
       run: |
-        robocopy build\bin\Windows\Release artifacts\xenia-canary xenia-canary.exe /r:0 /w:0
-        robocopy build\bin\Windows\Release artifacts\xenia-vfs-dump xenia-vfs-dump.exe /r:0 /w:0
-        robocopy . artifacts\xenia-canary LICENSE /r:0 /w:0
-        robocopy . artifacts\xenia-canary-vfs-dump LICENSE /r:0 /w:0
-        If ($LastExitCode -lt 8) { $LastExitCode = 0 }
+        robocopy . build\bin\Windows\Release LICENSE /r:0 /w:0
+        robocopy build\bin\Windows\Release artifacts\xenia-canary xenia-canary.exe LICENSE /r:0 /w:0
+        robocopy build\bin\Windows\Release artifacts\xenia-vfs-dump xenia-vfs-dump.exe LICENSE /r:0 /w:0
+        If ($LastExitCode -le 7) { $LastExitCode = 0 }
         7z a -mx1 xenia-canary.zip LICENSE .\artifacts\xenia-canary\*.exe
 
     - name: Upload xenia-canary artifacts
